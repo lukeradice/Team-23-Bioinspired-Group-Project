@@ -20,4 +20,4 @@ htmlcov/
 /temp/*.pkl
 
 # Local editor files
-.vscode/launch.json
+.vscode/*
