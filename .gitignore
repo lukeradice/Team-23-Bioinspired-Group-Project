@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Test and coverage output
+.pytest_cache/
+.coverage
+htmlcov/
+
+# CAPyLE's generated runtime state
+/temp/*.pkl
+
+# Local editor files
+.vscode/launch.json
