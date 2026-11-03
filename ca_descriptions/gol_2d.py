@@ -12,7 +12,7 @@ sys.path.append(main_dir_loc + 'capyle/ca')
 sys.path.append(main_dir_loc + 'capyle/guicomponents')
 # ---
 
-from capyle.ca import Grid2D, Neighbourhood, CAConfig, randomise2d
+from capyle.ca import Grid2D, Neighbourhood, CAConfig, grid, randomise2d
 import capyle.utils as utils
 import numpy as np
 
@@ -27,17 +27,19 @@ def transition_func(grid, neighbourstates, neighbourcounts):
     # if 2 or 3 live neighbours and is alive -> survives
     survive = ((live_neighbours == 2) | (live_neighbours == 3)) & (grid == 1)
 
+
     # new sick state, sick = state == 2
-    remain_sick = ((sick_neighbours > 0) & (sick_neighbours <= 4)) & (grid == 2)
+    recovery = (sick_neighbours ==0) & (grid ==2)
+    remain_sick = (sick_neighbours <= 4) & (grid == 2)
     become_sick = (sick_neighbours > 2) & (grid == 1) 
-    die_from_sickness = (sick_neighbours > 4)
+    die_from_sickness = (sick_neighbours > 4) & (grid == 2)
 
     # Set all cells to 0 (dead)
     grid[:, :] = 0
 
     # Set cells to 1 where either cell is born or survives
-    grid[birth | survive] = 1
     grid[become_sick | remain_sick] = 2
+    grid[birth | survive | recovery] = 1
     grid[die_from_sickness] = 0
     return grid
 
