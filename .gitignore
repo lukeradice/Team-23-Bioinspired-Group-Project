@@ -18,6 +18,3 @@ htmlcov/
 
 # CAPyLE's generated runtime state
 /temp/*.pkl
-
-# Local editor files
-.vscode/*
