@@ -14,6 +14,7 @@ sys.path.append(main_dir_loc + 'capyle/guicomponents')
 
 from capyle.ca import Grid2D, Neighbourhood, randomise2d
 import capyle.utils as utils
+import numpy as np
 
 BURNING_STATE = 0
 BURNT_STATE = 1
@@ -59,8 +60,9 @@ def setup(args):
         FLAMMABLE_SCRUBLAND_COLOR, 
         TOWN_COLOR
     ]
-    config.grid_dims = (100,100)
+    config.grid_dims = (200,200)
 
+    config.initial_grid = get_initial_grid()        
     # ----------------------------------------------------------------------
 
     # the GUI calls this to pass the user defined config
@@ -71,6 +73,30 @@ def setup(args):
         sys.exit()
     return config
 
+def get_initial_grid():
+    initial_grid = np.zeros((200, 200), dtype=int)
+
+    # Chaparral
+    initial_grid[:, :] = CHAPARRAL_STATE
+
+    # Forests
+    initial_grid[20:30, 0:100] = FOREST_STATE
+    initial_grid[30:140, 20:50] = FOREST_STATE
+    initial_grid[120:140, 50:100] = FOREST_STATE
+    initial_grid[40:60, 140:180] = FOREST_STATE
+
+    # Lakes
+    initial_grid[50:90, 70:90] = LAKE_STATE
+    initial_grid[110:160, 150:160] = LAKE_STATE
+
+    # Highly flammable scrubland
+    initial_grid[90:100, 100:180] = FLAMMABLE_SCRUBLAND_STATE
+
+    # town is at 43.75 down, it is at 18.75 across, it is 5 x 5
+    # Town
+    initial_grid[175:185, 75:85] = TOWN_STATE
+
+    return initial_grid
 
 def transition_function(grid, neighbourstates, neighbourcounts):
     """Function to apply the transition rules
