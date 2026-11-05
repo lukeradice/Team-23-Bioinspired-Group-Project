@@ -29,7 +29,7 @@ def setup(args):
     config_path = args[0]
     config = utils.load(config_path)
     # -- THE CA MUST BE RELOADED IN THE GUI IF ANY OF THE BELOW ARE CHANGED --
-    config.title = "NAME"
+    config.title = "FOREST FIRE MODEL CA"
     config.dimensions = 2
 
     config.states = (
@@ -80,10 +80,10 @@ def get_initial_grid():
     initial_grid[:, :] = CHAPARRAL_STATE
 
     # Forests
-    initial_grid[20:30, 0:100] = FOREST_STATE
-    initial_grid[30:140, 20:50] = FOREST_STATE
-    initial_grid[120:140, 50:100] = FOREST_STATE
-    initial_grid[40:60, 140:180] = FOREST_STATE
+    initial_grid[20:30, 0:100] = FOREST_STATE 
+    initial_grid[30:140, 20:50] = FOREST_STATE 
+    initial_grid[120:140, 50:100] = FOREST_STATE 
+    initial_grid[40:60, 130:180] = FOREST_STATE 
 
     # Lakes
     initial_grid[50:90, 70:90] = LAKE_STATE
@@ -92,7 +92,6 @@ def get_initial_grid():
     # Highly flammable scrubland
     initial_grid[90:100, 100:180] = FLAMMABLE_SCRUBLAND_STATE
 
-    # town is at 43.75 down, it is at 18.75 across, it is 5 x 5
     # Town
     initial_grid[175:185, 75:85] = TOWN_STATE
 
