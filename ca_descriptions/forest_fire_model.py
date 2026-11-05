@@ -16,6 +16,8 @@ from capyle.ca import Grid2D, Neighbourhood, randomise2d
 import capyle.utils as utils
 import numpy as np
 
+GRID_DIMS = (200, 200)
+
 BURNING_STATE = 0
 BURNT_STATE = 1
 CHAPARRAL_STATE = 2
@@ -25,10 +27,8 @@ FLAMMABLE_SCRUBLAND_STATE = 5
 TOWN_STATE = 6
 
 def get_initial_grid(starting_fire_index):
-    initial_grid = np.zeros((200, 200), dtype=int)
-
     # Chaparral
-    initial_grid[:, :] = CHAPARRAL_STATE
+    initial_grid = np.full(GRID_DIMS, CHAPARRAL_STATE, dtype=int)
 
     # Forests
     initial_grid[20:30, 0:100] = FOREST_STATE 
@@ -87,10 +87,10 @@ def setup(args):
         FLAMMABLE_SCRUBLAND_COLOR, 
         TOWN_COLOR
     ]
-    config.grid_dims = (200,200)
+    config.grid_dims = GRID_DIMS
 
     POWER_PLANT_LOCATION = (0, 0)
-    INCERATOR_LOCATION = (0, 199)
+    INCERATOR_LOCATION = (0, GRID_DIMS[1] - 1)
     config.initial_grid = get_initial_grid(INCERATOR_LOCATION)        
 
     # ----------------------------------------------------------------------
