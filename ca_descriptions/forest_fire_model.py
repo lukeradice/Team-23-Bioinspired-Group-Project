@@ -58,6 +58,12 @@ class Context(NamedTuple):
     terrain_grid: np.ndarray
     fuel_grid: np.ndarray
 
+
+    # Direction the wind blows from in compass degrees (0 = northerly, 90 = easterly)
+    wind_from_deg: float = 0.0
+    # Wind speed in m/s NEEDS TO BE CALIBRATED
+    wind_speed: float = 5.0
+
     @classmethod
     def from_config(cls, config):
         """Create a new context with default parameters."""
@@ -152,6 +158,39 @@ def get_fire_spread_probability(states: np.ndarray, burning_neighbours: np.ndarr
 
     return 1 - np.exp(-spread * ctx.timestep_hours)
 
+# Wind constants from alexandridis (2008) - wind speed in m/s
+WIND_C1 = 0.045
+WIND_C2 = 0.131
+
+# Compass bearing (degrees clockwise from north) of each neighbour
+# in the same order as CAPyLE's neighbourstates: NW, N, NE, W, E, SW, S, SE
+NEIGHBOUR_BEARINGS = np.array([315, 0, 45, 270, 90, 225, 180, 135])
+
+
+def get_wind_weights(ctx: Context) -> np.ndarray:
+    """Returns one spread multiplier per neighbour (in neighbourstates order).
+
+    Fire from a neighbour on the side the wind is coming from is blown
+    onto the cell, so it gets a weight above 1. Fire from a neighbour
+    downwind has to burn against the wind, so it gets a weight below 1.
+    With no wind every weight is 1.
+    """
+    # angle between the wind and the direction fire travels from each neighbour
+    angles = np.radians(NEIGHBOUR_BEARINGS - ctx.wind_from_deg)
+
+    return np.exp(WIND_C1 * ctx.wind_speed) * np.exp(WIND_C2 * ctx.wind_speed * (np.cos(angles) - 1))
+
+
+def get_wind_weighted_burning_neighbours(neighbourstates: np.ndarray, ctx: Context) -> np.ndarray:
+    """Like counting burning neighbours, but each one counts as its wind weight."""
+    weights = get_wind_weights(ctx)
+
+    weighted_count = np.zeros(neighbourstates[0].shape, dtype=float)
+    for i in range(8):
+        weighted_count += weights[i] * (neighbourstates[i] == BURNING_STATE)
+
+    return weighted_count
+
 
 def transition_function(grid, neighbourstates, neighbourcounts, ctx: Context):
     """Function to apply the transition rules
@@ -170,7 +209,8 @@ def transition_function(grid, neighbourstates, neighbourcounts, ctx: Context):
 
     # --- Spread fires ---
 
-    ps = get_fire_spread_probability(grid, neighbourcounts[BURNING_STATE], ctx)
+    burning_neighbours = get_wind_weighted_burning_neighbours(neighbourstates, ctx)
+    ps = get_fire_spread_probability(grid, burning_neighbours, ctx)
     igniting = np.random.random(grid.shape) < ps
 
     grid[igniting] = BURNING_STATE
