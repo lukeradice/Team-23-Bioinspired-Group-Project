@@ -66,8 +66,14 @@ class Context(NamedTuple):
         terrain_grid = build_terrain_grid(config.grid_dims)
         terrain_grid.setflags(write=False)
 
-        # Create a fuel grid. Each value represents the remaining burn time steps
-        fuel_grid = np.zeros(config.grid_dims, dtype=np.int16)
+        # Defines how long each cell should burn for in hours/km2
+        burn_times = np.zeros(config.grid_dims, dtype=np.int16)
+        burn_times[config.initial_grid == FOREST_STATE] = 30 * 24  # 1 month/km2
+        burn_times[config.initial_grid == CHAPARRAL_STATE] = 3 * 24  # 3 days/km2
+        burn_times[config.initial_grid == FLAMMABLE_SCRUBLAND_STATE] = 6  # 6 hours/km2
+
+        # Convert this to the number of simulation steps that a cell should burn for
+        fuel_grid = np.ceil(burn_times * cls.cell_km ** 2 / cls.timestep_hours).astype(np.int16)
         fuel_grid[config.initial_grid == BURNING_STATE] = -1  # Initial burning cells have infinite fuel
 
         return cls(
@@ -132,19 +138,9 @@ def setup(args):
         sys.exit()
     return config
 
-
-
-def get_fuel_timesteps(states: np.ndarray, ctx: Context) -> np.ndarray:
-    fuel = np.zeros(states.shape, dtype=float)
-    fuel[states == FOREST_STATE] = 30 * 24  # 1 month/km2
-    fuel[states == CHAPARRAL_STATE] = 3 * 24  # 3 days/km2
-    fuel[states == FLAMMABLE_SCRUBLAND_STATE] = 6  # 6 hours/km2
-
-    fuel_steps = np.ceil(fuel * ctx.cell_km ** 2 / ctx.timestep_hours)
-
-    return fuel_steps.astype(np.int16)
-
 def get_fire_spread_probability(states: np.ndarray, burning_neighbours: np.ndarray, ctx: Context) -> np.ndarray:
+    """Calculates the probability that each cell will catch fire from its neighbours."""
+
     spread_rates = np.zeros(states.shape, dtype=float)
 
     # These values are arbitrary and can be changed to affect how quickly fire will spread
@@ -177,7 +173,6 @@ def transition_function(grid, neighbourstates, neighbourcounts, ctx: Context):
     ps = get_fire_spread_probability(grid, neighbourcounts[BURNING_STATE], ctx)
     igniting = np.random.random(grid.shape) < ps
 
-    ctx.fuel_grid[igniting] = get_fuel_timesteps(grid[igniting], ctx)
     grid[igniting] = BURNING_STATE
 
     return grid
