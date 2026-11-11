@@ -59,6 +59,8 @@ class Context(NamedTuple):
     # Wind speed in m/s
     wind_speed = 0.0
 
+    rng: np.random.Generator = np.random.default_rng(67)
+
     terrain_grid: np.ndarray
     fuel_grid: np.ndarray
     # spread multiplier for each neighbour, in neighbourstates order
@@ -221,7 +223,7 @@ def transition_function(grid, neighbourstates, neighbourcounts, ctx: Context):
 
     fire_exposure = get_fire_exposure(neighbourstates, ctx)
     ps = get_fire_spread_probability(grid, fire_exposure, ctx)
-    igniting = np.random.random(grid.shape) < ps
+    igniting = ctx.rng.random(grid.shape) < ps
 
     grid[igniting] = BURNING_STATE
 
