@@ -53,11 +53,11 @@ def build_terrain_grid(grid_dims):
 
 class Context(NamedTuple):
     cell_km = 0.25
-    timestep_hours = 1.0
+    timestep_hours = 0.2
     # Direction the wind blows from in compass degrees (0 = northerly, 90 = easterly)
     wind_from_deg = 0.0
     # Wind speed in m/s
-    wind_speed = 5.0
+    wind_speed = 0.0
 
     terrain_grid: np.ndarray
     fuel_grid: np.ndarray
@@ -82,7 +82,7 @@ class Context(NamedTuple):
         burn_times[config.initial_grid == FLAMMABLE_SCRUBLAND_STATE] = 6  # 6 hours/km2
 
         # Convert this to the number of simulation steps that a cell should burn for
-        fuel_grid = np.ceil(burn_times * cls.cell_km ** 2 / cls.timestep_hours).astype(np.int16)
+        fuel_grid = np.ceil(burn_times * cls.cell_km ** 2 / cls.timestep_hours).astype(int)
         fuel_grid[config.initial_grid == BURNING_STATE] = -1  # Initial burning cells have infinite fuel
 
         # Wind constants from alexandridis (2008) - wind speed in m/s
@@ -167,16 +167,21 @@ def setup(args):
 def get_fire_spread_probability(states: np.ndarray, fire_exposure: np.ndarray, ctx: Context) -> np.ndarray:
     """Calculates the probability that each cell will catch fire from its neighbours."""
 
+    # Values in km/h
     spread_rates = np.zeros(states.shape, dtype=float)
 
-    # These values are arbitrary and can be changed to affect how quickly fire will spread
-    spread_rates[states == FOREST_STATE] = 0.035
-    spread_rates[states == CHAPARRAL_STATE] = 0.1
-    spread_rates[states == FLAMMABLE_SCRUBLAND_STATE] = 0.4
+    # <0.3km/h - Natural Resources Canada, Fire Behaviour.
+    spread_rates[states == FOREST_STATE] = 0.2
 
-    spread = spread_rates * fire_exposure / ctx.cell_km
+    # 0.79–2.02km/h - Stephens et al. (2008), Measuring the Rate of Spread of Chaparral Prescribed Fires in Northern California.
+    spread_rates[states == CHAPARRAL_STATE] = 1.405  # Mean of the range
 
-    return 1 - np.exp(-spread * ctx.timestep_hours)
+    # ~3km/h - Cruz & Alexander (2019)
+    spread_rates[states == FLAMMABLE_SCRUBLAND_STATE] = 3.0
+
+    spread = spread_rates * fire_exposure * ctx.timestep_hours / ctx.cell_km
+
+    return 1 - np.exp(-spread)
 
 
 def get_wind_weights(wind_from_deg: float, wind_speed: float) -> np.ndarray:
