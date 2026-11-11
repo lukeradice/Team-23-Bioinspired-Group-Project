@@ -124,6 +124,9 @@ def load(path):
 
 def save(obj, path):
     """Save an object to disk"""
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
     with open(path, 'wb') as output:
         pickle.dump(obj, output, -1)
 

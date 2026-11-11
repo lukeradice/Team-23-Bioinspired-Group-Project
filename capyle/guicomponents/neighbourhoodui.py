@@ -20,7 +20,7 @@ class _NeighbourhoodUI(tk.Frame, _ConfigUIComponent):
             self.options = 'Moore', 'Von Neumann', 'Custom'
         self.optvar = tk.StringVar(self)
         self.optvar.set(self.options[0])
-        self.optvar.trace("w", self.callback)
+        self.optvar.trace_add("write", self.callback)
         self.optbox = tk.OptionMenu(labelframe, self.optvar, *self.options)
         self.optbox.config(width=9)
         self.optbox.pack(side=tk.LEFT)
