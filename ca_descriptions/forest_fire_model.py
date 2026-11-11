@@ -59,13 +59,18 @@ class Context(NamedTuple):
     # Wind speed in m/s
     wind_speed = 0.0
 
+    # Must be defined after other fields otherwise it errors. Like sure whatever
+    rng = np.random.Generator = np.random.default_rng(67)
+
+    # Burn times independent of cell area in hours
+    forest_burn_length = 30 * 24 # 1 month
+    chapparal_burn_length = 3 * 24 # 3 days
+    scrubland_burn_length = 6 # 6 hours
+
     terrain_grid: np.ndarray
     fuel_grid: np.ndarray
     # spread multiplier for each neighbour, in neighbourstates order
     wind_weights: np.ndarray
-
-    # Must be defined after other fields otherwise it errors. Like sure whatever
-    rng: np.random.Generator = np.random.default_rng(67)
 
     @classmethod
     def from_config(cls, config):
@@ -78,11 +83,21 @@ class Context(NamedTuple):
         terrain_grid = build_terrain_grid(config.grid_dims)
         terrain_grid.setflags(write=False)
 
+        # Burnable terrain indicies
+        forest_indicies = config.initial_grid == FOREST_STATE
+        chapparal_indicies = config.initial_grid == CHAPARRAL_STATE
+        scrubland_indicies = config.initial_grid == FLAMMABLE_SCRUBLAND_STATE
+        
+        # Getting random multipliers so burn times are not unform across same terrain types
+        forest_random_multipliers = config.rng.random.uniform(0.8, 1.0, size=forest_indicies.sum())
+        chapparal_random_multipliers = config.rng.random.uniform(0.8, 1.0, size=chapparal_indicies.sum())
+        scrubland_random_multipliers = config.rng.random.uniform(0.8, 1.0, size=scrubland_indicies.sum())
+
         # Burn durations in hours, independent of cell area.
         burn_times = np.zeros(config.grid_dims, dtype=float)
-        burn_times[config.initial_grid == FOREST_STATE] = 30 * 24  # 30 days
-        burn_times[config.initial_grid == CHAPARRAL_STATE] = 3 * 24  # 3 days
-        burn_times[config.initial_grid == FLAMMABLE_SCRUBLAND_STATE] = 6  # 6 hours
+        burn_times[forest_indicies] = np.round(config.forest_burn_length * forest_random_multipliers).astype(np.int16)  
+        burn_times[chapparal_indicies] = np.round(config.chapparal_burn_length * chapparal_random_multipliers).astype(np.int16)  
+        burn_times[scrubland_indicies] = np.round(config.scrubland_burn_length * scrubland_random_multipliers).astype(np.int16)  
 
         # Convert this to the number of simulation steps that a cell should burn for
         fuel_grid = np.ceil(burn_times / cls.timestep_hours).astype(int)
