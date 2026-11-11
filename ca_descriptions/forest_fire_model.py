@@ -59,12 +59,13 @@ class Context(NamedTuple):
     # Wind speed in m/s
     wind_speed = 0.0
 
-    rng: np.random.Generator = np.random.default_rng(67)
-
     terrain_grid: np.ndarray
     fuel_grid: np.ndarray
     # spread multiplier for each neighbour, in neighbourstates order
     wind_weights: np.ndarray
+
+    # Must be defined after other fields otherwise it errors. Like sure whatever
+    rng: np.random.Generator = np.random.default_rng(67)
 
     @classmethod
     def from_config(cls, config):
