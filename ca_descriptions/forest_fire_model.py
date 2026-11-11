@@ -89,9 +89,9 @@ class Context(NamedTuple):
         scrubland_indicies = config.initial_grid == FLAMMABLE_SCRUBLAND_STATE
         
         # Getting random multipliers so burn times are not unform across same terrain types
-        forest_random_multipliers = config.rng.random.uniform(0.8, 1.0, size=forest_indicies.sum())
-        chapparal_random_multipliers = config.rng.random.uniform(0.8, 1.0, size=chapparal_indicies.sum())
-        scrubland_random_multipliers = config.rng.random.uniform(0.8, 1.0, size=scrubland_indicies.sum())
+        forest_random_multipliers = cls.rng.uniform(0.8, 1.0, size=forest_indicies.sum())
+        chapparal_random_multipliers = cls.rng.uniform(0.8, 1.0, size=chapparal_indicies.sum())
+        scrubland_random_multipliers = cls.rng.uniform(0.8, 1.0, size=scrubland_indicies.sum())
 
         # Burn durations in hours, independent of cell area.
         burn_times = np.zeros(config.grid_dims, dtype=float)
