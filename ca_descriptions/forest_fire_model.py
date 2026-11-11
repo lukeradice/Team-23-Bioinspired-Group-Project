@@ -95,9 +95,9 @@ class Context(NamedTuple):
 
         # Burn durations in hours, independent of cell area.
         burn_times = np.zeros(config.grid_dims, dtype=float)
-        burn_times[forest_indicies] = np.round(config.forest_burn_length * forest_random_multipliers).astype(np.int16)  
-        burn_times[chapparal_indicies] = np.round(config.chapparal_burn_length * chapparal_random_multipliers).astype(np.int16)  
-        burn_times[scrubland_indicies] = np.round(config.scrubland_burn_length * scrubland_random_multipliers).astype(np.int16)  
+        burn_times[forest_indicies] = cls.forest_burn_length * forest_random_multipliers
+        burn_times[chapparal_indicies] = cls.chapparal_burn_length * chapparal_random_multipliers
+        burn_times[scrubland_indicies] = cls.scrubland_burn_length * scrubland_random_multipliers
 
         # Convert this to the number of simulation steps that a cell should burn for
         fuel_grid = np.ceil(burn_times / cls.timestep_hours).astype(int)
