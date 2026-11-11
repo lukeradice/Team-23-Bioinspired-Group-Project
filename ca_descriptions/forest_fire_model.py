@@ -59,7 +59,7 @@ class Context(NamedTuple):
     # Wind speed in m/s
     wind_speed = 0.0
 
-    # Must be defined after other fields otherwise it errors. Like sure whatever
+    # Define random seed
     rng = np.random.Generator = np.random.default_rng(67)
 
     # Burn times independent of cell area in hours
