@@ -78,14 +78,14 @@ class Context(NamedTuple):
         terrain_grid = build_terrain_grid(config.grid_dims)
         terrain_grid.setflags(write=False)
 
-        # Defines how long each cell should burn for in hours/km2
-        burn_times = np.zeros(config.grid_dims, dtype=np.int16)
-        burn_times[config.initial_grid == FOREST_STATE] = 30 * 24  # 1 month/km2
-        burn_times[config.initial_grid == CHAPARRAL_STATE] = 3 * 24  # 3 days/km2
-        burn_times[config.initial_grid == FLAMMABLE_SCRUBLAND_STATE] = 6  # 6 hours/km2
+        # Burn durations in hours, independent of cell area.
+        burn_times = np.zeros(config.grid_dims, dtype=float)
+        burn_times[config.initial_grid == FOREST_STATE] = 30 * 24  # 30 days
+        burn_times[config.initial_grid == CHAPARRAL_STATE] = 3 * 24  # 3 days
+        burn_times[config.initial_grid == FLAMMABLE_SCRUBLAND_STATE] = 6  # 6 hours
 
         # Convert this to the number of simulation steps that a cell should burn for
-        fuel_grid = np.ceil(burn_times * cls.cell_km ** 2 / cls.timestep_hours).astype(int)
+        fuel_grid = np.ceil(burn_times / cls.timestep_hours).astype(int)
         fuel_grid[config.initial_grid == BURNING_STATE] = -1  # Initial burning cells have infinite fuel
 
         # Wind constants from alexandridis (2008) - wind speed in m/s
