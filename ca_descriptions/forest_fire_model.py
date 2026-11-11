@@ -1,4 +1,4 @@
-# Name: NAME
+# Name: FOREST FIRE MODEL CA
 # Dimensions: 2
 
 # --- Set up executable path, do not edit ---
