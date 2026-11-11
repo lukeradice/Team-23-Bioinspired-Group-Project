@@ -54,20 +54,18 @@ def build_terrain_grid(grid_dims):
 class Context(NamedTuple):
     cell_km = 0.25
     timestep_hours = 1.0
+    # Direction the wind blows from in compass degrees (0 = northerly, 90 = easterly)
+    wind_from_deg = 0.0
+    # Wind speed in m/s
+    wind_speed = 5.0
 
     terrain_grid: np.ndarray
     fuel_grid: np.ndarray
-
-    # Direction the wind blows from in compass degrees (0 = northerly, 90 = easterly)
-    wind_from_deg: float
-    # Wind speed in m/s
-    wind_speed: float
-    # spread multiplier for each neighbour, in neighbourstates order. Calculated
-    # once here because the wind doesn't change during a run
+    # spread multiplier for each neighbour, in neighbourstates order
     wind_weights: np.ndarray
 
     @classmethod
-    def from_config(cls, config, wind_from_deg=0.0, wind_speed=5.0):
+    def from_config(cls, config):
         """Create a new context with default parameters.
 
         The default wind is northerly at 5 m/s. NEEDS TO BE CALIBRATED
@@ -87,12 +85,23 @@ class Context(NamedTuple):
         fuel_grid = np.ceil(burn_times * cls.cell_km ** 2 / cls.timestep_hours).astype(np.int16)
         fuel_grid[config.initial_grid == BURNING_STATE] = -1  # Initial burning cells have infinite fuel
 
+        # Wind constants from alexandridis (2008) - wind speed in m/s
+        WIND_C1 = 0.045
+        WIND_C2 = 0.131
+
+        # Compass bearing (degrees clockwise from north) of each neighbour
+        # in the same order as CAPyLE's neighbourstates: NW, N, NE, W, E, SW, S, SE
+        NEIGHBOUR_BEARINGS = np.array([315, 0, 45, 270, 90, 225, 180, 135])
+
+        # angle between the wind and the direction fire travels from each neighbour
+        angles = np.radians(NEIGHBOUR_BEARINGS - cls.wind_from_deg)
+
+        wind_weights = np.exp(WIND_C1 * cls.wind_speed) * np.exp(WIND_C2 * cls.wind_speed * (np.cos(angles) - 1))
+
         return cls(
             terrain_grid=terrain_grid,
             fuel_grid=fuel_grid,
-            wind_from_deg=wind_from_deg,
-            wind_speed=wind_speed,
-            wind_weights=get_wind_weights(wind_from_deg, wind_speed)
+            wind_weights=wind_weights
         )
 
 
@@ -134,10 +143,13 @@ def setup(args):
     ]
     config.grid_dims = (200, 200)
 
-    POWER_PLANT_LOCATION = (0, 0)
-    INCERATOR_LOCATION = (0, config.grid_dims[1] - 1) # top right corner
     config.initial_grid = build_terrain_grid(config.grid_dims)
-    config.initial_grid[INCERATOR_LOCATION] = BURNING_STATE
+
+    # INCERATOR_LOCATION = (0, config.grid_dims[1] - 1) # top right corner
+    # config.initial_grid[INCERATOR_LOCATION] = BURNING_STATE
+
+    POWER_PLANT_LOCATION = (0, 0)
+    config.initial_grid[POWER_PLANT_LOCATION] = BURNING_STATE
 
     # Stop fire crossing an edge and reappearing on the opposite side.
     config.wrap = False
@@ -167,15 +179,6 @@ def get_fire_spread_probability(states: np.ndarray, fire_exposure: np.ndarray, c
     return 1 - np.exp(-spread * ctx.timestep_hours)
 
 
-# Wind constants from alexandridis (2008) - wind speed in m/s
-WIND_C1 = 0.045
-WIND_C2 = 0.131
-
-# Compass bearing (degrees clockwise from north) of each neighbour
-# in the same order as CAPyLE's neighbourstates: NW, N, NE, W, E, SW, S, SE
-NEIGHBOUR_BEARINGS = np.array([315, 0, 45, 270, 90, 225, 180, 135])
-
-
 def get_wind_weights(wind_from_deg: float, wind_speed: float) -> np.ndarray:
     """Returns one spread multiplier per neighbour (in neighbourstates order).
 
@@ -184,10 +187,6 @@ def get_wind_weights(wind_from_deg: float, wind_speed: float) -> np.ndarray:
     downwind has to burn against the wind, so it gets a weight below 1.
     With no wind every weight is 1.
     """
-    # angle between the wind and the direction fire travels from each neighbour
-    angles = np.radians(NEIGHBOUR_BEARINGS - wind_from_deg)
-
-    return np.exp(WIND_C1 * wind_speed) * np.exp(WIND_C2 * wind_speed * (np.cos(angles) - 1))
 
 
 def get_fire_exposure(neighbourstates: np.ndarray, ctx: Context) -> np.ndarray:
