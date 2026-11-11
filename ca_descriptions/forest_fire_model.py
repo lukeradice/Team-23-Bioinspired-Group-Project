@@ -58,9 +58,20 @@ class Context(NamedTuple):
     terrain_grid: np.ndarray
     fuel_grid: np.ndarray
 
+    # Direction the wind blows from in compass degrees (0 = northerly, 90 = easterly)
+    wind_from_deg: float
+    # Wind speed in m/s
+    wind_speed: float
+    # spread multiplier for each neighbour, in neighbourstates order. Calculated
+    # once here because the wind doesn't change during a run
+    wind_weights: np.ndarray
+
     @classmethod
-    def from_config(cls, config):
-        """Create a new context with default parameters."""
+    def from_config(cls, config, wind_from_deg=0.0, wind_speed=5.0):
+        """Create a new context with default parameters.
+
+        The default wind is northerly at 5 m/s. NEEDS TO BE CALIBRATED
+        """
 
         # Create a read-only terrain grid
         terrain_grid = build_terrain_grid(config.grid_dims)
@@ -78,7 +89,10 @@ class Context(NamedTuple):
 
         return cls(
             terrain_grid=terrain_grid,
-            fuel_grid=fuel_grid
+            fuel_grid=fuel_grid,
+            wind_from_deg=wind_from_deg,
+            wind_speed=wind_speed,
+            wind_weights=get_wind_weights(wind_from_deg, wind_speed)
         )
 
 
@@ -138,7 +152,7 @@ def setup(args):
         sys.exit()
     return config
 
-def get_fire_spread_probability(states: np.ndarray, burning_neighbours: np.ndarray, ctx: Context) -> np.ndarray:
+def get_fire_spread_probability(states: np.ndarray, fire_exposure: np.ndarray, ctx: Context) -> np.ndarray:
     """Calculates the probability that each cell will catch fire from its neighbours."""
 
     spread_rates = np.zeros(states.shape, dtype=float)
@@ -148,9 +162,40 @@ def get_fire_spread_probability(states: np.ndarray, burning_neighbours: np.ndarr
     spread_rates[states == CHAPARRAL_STATE] = 0.1
     spread_rates[states == FLAMMABLE_SCRUBLAND_STATE] = 0.4
 
-    spread = spread_rates * burning_neighbours / ctx.cell_km
+    spread = spread_rates * fire_exposure / ctx.cell_km
 
     return 1 - np.exp(-spread * ctx.timestep_hours)
+
+
+# Wind constants from alexandridis (2008) - wind speed in m/s
+WIND_C1 = 0.045
+WIND_C2 = 0.131
+
+# Compass bearing (degrees clockwise from north) of each neighbour
+# in the same order as CAPyLE's neighbourstates: NW, N, NE, W, E, SW, S, SE
+NEIGHBOUR_BEARINGS = np.array([315, 0, 45, 270, 90, 225, 180, 135])
+
+
+def get_wind_weights(wind_from_deg: float, wind_speed: float) -> np.ndarray:
+    """Returns one spread multiplier per neighbour (in neighbourstates order).
+
+    Fire from a neighbour on the side the wind is coming from is blown
+    onto the cell, so it gets a weight above 1. Fire from a neighbour
+    downwind has to burn against the wind, so it gets a weight below 1.
+    With no wind every weight is 1.
+    """
+    # angle between the wind and the direction fire travels from each neighbour
+    angles = np.radians(NEIGHBOUR_BEARINGS - wind_from_deg)
+
+    return np.exp(WIND_C1 * wind_speed) * np.exp(WIND_C2 * wind_speed * (np.cos(angles) - 1))
+
+
+def get_fire_exposure(neighbourstates: np.ndarray, ctx: Context) -> np.ndarray:
+    """Like counting burning neighbours, but each one counts as its wind weight."""
+    burning = neighbourstates == BURNING_STATE  # shape (8, rows, cols)
+
+    # multiply each of the 8 neighbour grids by its wind weight then add them up
+    return np.sum(ctx.wind_weights[:, None, None] * burning, axis=0)
 
 
 def transition_function(grid, neighbourstates, neighbourcounts, ctx: Context):
@@ -170,7 +215,8 @@ def transition_function(grid, neighbourstates, neighbourcounts, ctx: Context):
 
     # --- Spread fires ---
 
-    ps = get_fire_spread_probability(grid, neighbourcounts[BURNING_STATE], ctx)
+    fire_exposure = get_fire_exposure(neighbourstates, ctx)
+    ps = get_fire_spread_probability(grid, fire_exposure, ctx)
     igniting = np.random.random(grid.shape) < ps
 
     grid[igniting] = BURNING_STATE
