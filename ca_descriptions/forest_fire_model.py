@@ -51,6 +51,54 @@ def build_terrain_grid(grid_dims):
     return initial_grid
 
 
+def build_height_grid(grid_dims, seed=42):
+    """
+    Builds a height map in metres made of a few cone-shaped hills.
+
+    Each hill slopes down linearly from its peak, so high and low ground is
+    grouped together and changes gradually instead of jumping between cells.
+    """
+    rng = np.random.default_rng(seed)
+    rows, cols = np.indices(grid_dims)
+    heights = np.zeros(grid_dims)
+
+    for _ in range(8):
+        peak_row = rng.uniform(0, grid_dims[0])
+        peak_col = rng.uniform(0, grid_dims[1])
+        peak_height = rng.uniform(100, 400)  # metres
+        radius = rng.uniform(20, 60)  # cells (5-15km)
+
+        distance = np.hypot(rows - peak_row, cols - peak_col)
+        heights += peak_height * np.maximum(0, 1 - distance / radius)
+
+    return heights
+
+
+def get_slope_weights(heights: np.ndarray, cell_km: float) -> np.ndarray:
+    """Returns a spread multiplier for every neighbour of every cell, shape (8, rows, cols).
+
+    Fire climbing from a lower neighbour up to a cell gets a weight above 1,
+    fire running downhill gets a weight below 1. Flat ground gives 1.
+    """
+    # Slope constant from alexandridis (2008), per degree of slope
+    SLOPE_A = 0.078
+
+    # Same order as CAPyLE's neighbourstates: NW, N, NE, W, E, SW, S, SE
+    NEIGHBOUR_OFFSETS = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+
+    rows, cols = heights.shape
+    padded = np.pad(heights, 1, mode='edge')
+
+    weights = []
+    for dr, dc in NEIGHBOUR_OFFSETS:
+        neighbour_heights = padded[1 + dr:1 + dr + rows, 1 + dc:1 + dc + cols]
+        distance_m = np.hypot(dr, dc) * cell_km * 1000  # diagonals are further away
+        slope_deg = np.degrees(np.arctan((heights - neighbour_heights) / distance_m))
+        weights.append(np.exp(SLOPE_A * slope_deg))
+
+    return np.array(weights)
+
+
 class Context(NamedTuple):
     cell_km = 0.25
     timestep_hours = 0.2
@@ -63,6 +111,8 @@ class Context(NamedTuple):
     fuel_grid: np.ndarray
     # spread multiplier for each neighbour, in neighbourstates order
     wind_weights: np.ndarray
+    # spread multiplier for each neighbour of each cell from the terrain slope, shape (8, rows, cols)
+    slope_weights: np.ndarray
 
     # Must be defined after other fields otherwise it errors. Like sure whatever
     rng: np.random.Generator = np.random.default_rng(67)
@@ -101,10 +151,13 @@ class Context(NamedTuple):
 
         wind_weights = np.exp(WIND_C1 * cls.wind_speed) * np.exp(WIND_C2 * cls.wind_speed * (np.cos(angles) - 1))
 
+        slope_weights = get_slope_weights(config.heights, cls.cell_km)
+
         return cls(
             terrain_grid=terrain_grid,
             fuel_grid=fuel_grid,
-            wind_weights=wind_weights
+            wind_weights=wind_weights,
+            slope_weights=slope_weights
         )
 
 
@@ -147,6 +200,8 @@ def setup(args):
     config.grid_dims = (200, 200)
 
     config.initial_grid = build_terrain_grid(config.grid_dims)
+    # Stored on the config so the GUI can show it with the "Show height map" button
+    config.heights = build_height_grid(config.grid_dims)
 
     # INCERATOR_LOCATION = (0, config.grid_dims[1] - 1) # top right corner
     # config.initial_grid[INCERATOR_LOCATION] = BURNING_STATE
@@ -198,11 +253,11 @@ def get_wind_weights(wind_from_deg: float, wind_speed: float) -> np.ndarray:
 
 
 def get_fire_exposure(neighbourstates: np.ndarray, ctx: Context) -> np.ndarray:
-    """Like counting burning neighbours, but each one counts as its wind weight."""
+    """Like counting burning neighbours, but each one counts as its wind and slope weight."""
     burning = neighbourstates == BURNING_STATE  # shape (8, rows, cols)
 
-    # multiply each of the 8 neighbour grids by its wind weight then add them up
-    return np.sum(ctx.wind_weights[:, None, None] * burning, axis=0)
+    # multiply each of the 8 neighbour grids by its wind and slope weight then add them up
+    return np.sum(ctx.wind_weights[:, None, None] * ctx.slope_weights * burning, axis=0)
 
 
 def transition_function(grid, neighbourstates, neighbourcounts, ctx: Context):
