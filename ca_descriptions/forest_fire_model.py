@@ -69,24 +69,21 @@ class Context(NamedTuple):
 
     @classmethod
     def from_config(cls, config):
-        """Create a new context with default parameters.
-
-        The default wind is northerly at 5 m/s. NEEDS TO BE CALIBRATED
-        """
+        """Create a new context with defaults inferred from the simulation's config."""
 
         # Create a read-only terrain grid
-        terrain_grid = build_terrain_grid(config.grid_dims)
+        terrain_grid = config.initial_grid.copy()
         terrain_grid.setflags(write=False)
 
         # Burn durations in hours, independent of cell area.
         burn_times = np.zeros(config.grid_dims, dtype=float)
-        burn_times[config.initial_grid == FOREST_STATE] = 30 * 24  # 30 days
-        burn_times[config.initial_grid == CHAPARRAL_STATE] = 3 * 24  # 3 days
-        burn_times[config.initial_grid == FLAMMABLE_SCRUBLAND_STATE] = 6  # 6 hours
+        burn_times[terrain_grid == FOREST_STATE] = 30 * 24  # 30 days
+        burn_times[terrain_grid == CHAPARRAL_STATE] = 3 * 24  # 3 days
+        burn_times[terrain_grid == FLAMMABLE_SCRUBLAND_STATE] = 6  # 6 hours
 
         # Convert this to the number of simulation steps that a cell should burn for
         fuel_grid = np.ceil(burn_times / cls.timestep_hours).astype(int)
-        fuel_grid[config.initial_grid == BURNING_STATE] = -1  # Initial burning cells have infinite fuel
+        fuel_grid[terrain_grid == BURNING_STATE] = -1  # Initial burning cells have infinite fuel
 
         # Wind constants from alexandridis (2008) - wind speed in m/s
         WIND_C1 = 0.045
@@ -146,7 +143,8 @@ def setup(args):
     ]
     config.grid_dims = (200, 200)
 
-    config.initial_grid = build_terrain_grid(config.grid_dims)
+    if config.initial_grid is None:
+        config.initial_grid = build_terrain_grid(config.grid_dims)
 
     # INCERATOR_LOCATION = (0, config.grid_dims[1] - 1) # top right corner
     # config.initial_grid[INCERATOR_LOCATION] = BURNING_STATE
@@ -185,16 +183,6 @@ def get_fire_spread_probability(states: np.ndarray, fire_exposure: np.ndarray, c
     spread = spread_rates * fire_exposure * ctx.timestep_hours / ctx.cell_km
 
     return 1 - np.exp(-spread)
-
-
-def get_wind_weights(wind_from_deg: float, wind_speed: float) -> np.ndarray:
-    """Returns one spread multiplier per neighbour (in neighbourstates order).
-
-    Fire from a neighbour on the side the wind is coming from is blown
-    onto the cell, so it gets a weight above 1. Fire from a neighbour
-    downwind has to burn against the wind, so it gets a weight below 1.
-    With no wind every weight is 1.
-    """
 
 
 def get_fire_exposure(neighbourstates: np.ndarray, ctx: Context) -> np.ndarray:
