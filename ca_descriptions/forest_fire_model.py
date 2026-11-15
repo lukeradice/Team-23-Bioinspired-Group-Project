@@ -59,13 +59,22 @@ class Context(NamedTuple):
     # Wind speed in m/s
     wind_speed = 0.0
 
+    # Define random seed
+    rng = np.random.Generator = np.random.default_rng(67)
+
+    # Burn times independent of cell area in hours
+    max_burn_times = {
+        FOREST_STATE: 30 * 24, # 1 month
+        CHAPARRAL_STATE: 3 * 24, # 3 days
+        FLAMMABLE_SCRUBLAND_STATE: 6 # 6 hours
+    }
+    # Burn time for a square will be at least 80% of the maximum in max_burn_times
+    min_burn_time_random_multiplier = 0.8 
+
     terrain_grid: np.ndarray
     fuel_grid: np.ndarray
     # spread multiplier for each neighbour, in neighbourstates order
     wind_weights: np.ndarray
-
-    # Must be defined after other fields otherwise it errors. Like sure whatever
-    rng: np.random.Generator = np.random.default_rng(67)
 
     @classmethod
     def from_config(cls, config):
@@ -75,11 +84,14 @@ class Context(NamedTuple):
         terrain_grid = config.initial_grid.copy()
         terrain_grid.setflags(write=False)
 
-        # Burn durations in hours, independent of cell area.
+        # Burn durations in hours, independent of cell area. 
         burn_times = np.zeros(config.grid_dims, dtype=float)
-        burn_times[terrain_grid == FOREST_STATE] = 30 * 24  # 30 days
-        burn_times[terrain_grid == CHAPARRAL_STATE] = 3 * 24  # 3 days
-        burn_times[terrain_grid == FLAMMABLE_SCRUBLAND_STATE] = 6  # 6 hours
+        for state, max_burn_time in cls.max_burn_times.items():
+            state_indicies = config.initial_grid == state
+
+            # Introduce some randomness for the amount of days a terrain square will burn for
+            random_multipliers = cls.rng.uniform(0.8, 1.0, size=state_indicies.sum())
+            burn_times[state_indicies] = max_burn_time * random_multipliers
 
         # Convert this to the number of simulation steps that a cell should burn for
         fuel_grid = np.ceil(burn_times / cls.timestep_hours).astype(int)
