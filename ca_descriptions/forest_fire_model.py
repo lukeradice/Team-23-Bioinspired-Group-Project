@@ -63,9 +63,13 @@ class Context(NamedTuple):
     rng = np.random.Generator = np.random.default_rng(67)
 
     # Burn times independent of cell area in hours
-    forest_burn_length = 30 * 24 # 1 month
-    chapparal_burn_length = 3 * 24 # 3 days
-    scrubland_burn_length = 6 # 6 hours
+    max_burn_times = {
+        FOREST_STATE: 30 * 24, # 1 month
+        CHAPARRAL_STATE: 3 * 24, # 3 days
+        FLAMMABLE_SCRUBLAND_STATE: 6 # 6 hours
+    }
+    # Burn time for a square will be at least 80% of the maximum in max_burn_times
+    min_burn_time_random_multiplier = 0.8 
 
     terrain_grid: np.ndarray
     fuel_grid: np.ndarray
@@ -80,21 +84,14 @@ class Context(NamedTuple):
         terrain_grid = config.initial_grid.copy()
         terrain_grid.setflags(write=False)
 
-        # Burnable terrain indicies
-        forest_indicies = config.initial_grid == FOREST_STATE
-        chapparal_indicies = config.initial_grid == CHAPARRAL_STATE
-        scrubland_indicies = config.initial_grid == FLAMMABLE_SCRUBLAND_STATE
-        
-        # Getting random multipliers so burn times are not unform across same terrain types
-        forest_random_multipliers = cls.rng.uniform(0.8, 1.0, size=forest_indicies.sum())
-        chapparal_random_multipliers = cls.rng.uniform(0.8, 1.0, size=chapparal_indicies.sum())
-        scrubland_random_multipliers = cls.rng.uniform(0.8, 1.0, size=scrubland_indicies.sum())
-
-        # Burn durations in hours, independent of cell area.
+        # Burn durations in hours, independent of cell area. 
         burn_times = np.zeros(config.grid_dims, dtype=float)
-        burn_times[forest_indicies] = cls.forest_burn_length * forest_random_multipliers
-        burn_times[chapparal_indicies] = cls.chapparal_burn_length * chapparal_random_multipliers
-        burn_times[scrubland_indicies] = cls.scrubland_burn_length * scrubland_random_multipliers
+        for state, max_burn_time in cls.max_burn_times.items():
+            state_indicies = config.initial_grid == state
+
+            # Introduce some randomness for the amount of days a terrain square will burn for
+            random_multipliers = cls.rng.uniform(0.8, 1.0, size=state_indicies.sum())
+            burn_times[state_indicies] = max_burn_time * random_multipliers
 
         # Convert this to the number of simulation steps that a cell should burn for
         fuel_grid = np.ceil(burn_times / cls.timestep_hours).astype(int)
