@@ -90,7 +90,7 @@ class Context(NamedTuple):
             state_indicies = config.initial_grid == state
 
             # Introduce some randomness for the amount of days a terrain square will burn for
-            random_multipliers = cls.rng.uniform(0.8, 1.0, size=state_indicies.sum())
+            random_multipliers = cls.rng.uniform(cls.min_burn_time_random_multiplier, 1.0, size=state_indicies.sum())
             burn_times[state_indicies] = max_burn_time * random_multipliers
 
         # Convert this to the number of simulation steps that a cell should burn for
