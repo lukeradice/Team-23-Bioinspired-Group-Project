@@ -51,6 +51,9 @@ def build_terrain_grid(grid_dims):
     return initial_grid
 
 
+NUMBER_OF_HILLS = 8
+
+
 def build_height_grid(grid_dims, seed=42):
     """
     Builds a height map in metres made of a few cone-shaped hills.
@@ -62,7 +65,7 @@ def build_height_grid(grid_dims, seed=42):
     rows, cols = np.indices(grid_dims)
     heights = np.zeros(grid_dims)
 
-    for _ in range(8):
+    for _ in range(NUMBER_OF_HILLS):
         peak_row = rng.uniform(0, grid_dims[0])
         peak_col = rng.uniform(0, grid_dims[1])
         peak_height = rng.uniform(100, 400)  # metres
