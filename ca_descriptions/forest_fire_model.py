@@ -107,6 +107,18 @@ class Context(NamedTuple):
     # Wind speed in m/s
     wind_speed = 0.0
 
+    # Define random seed
+    rng = np.random.Generator = np.random.default_rng(67)
+
+    # Burn times independent of cell area in hours
+    max_burn_times = {
+        FOREST_STATE: 30 * 24, # 1 month
+        CHAPARRAL_STATE: 3 * 24, # 3 days
+        FLAMMABLE_SCRUBLAND_STATE: 6 # 6 hours
+    }
+    # Burn time for a square will be at least 80% of the maximum in max_burn_times
+    min_burn_time_random_multiplier = 0.8 
+
     terrain_grid: np.ndarray
     fuel_grid: np.ndarray
     # spread multiplier for each neighbour, in neighbourstates order
@@ -114,29 +126,26 @@ class Context(NamedTuple):
     # spread multiplier for each neighbour of each cell from the terrain slope, shape (8, rows, cols)
     slope_weights: np.ndarray
 
-    # Must be defined after other fields otherwise it errors. Like sure whatever
-    rng: np.random.Generator = np.random.default_rng(67)
-
     @classmethod
     def from_config(cls, config):
-        """Create a new context with default parameters.
-
-        The default wind is northerly at 5 m/s. NEEDS TO BE CALIBRATED
-        """
+        """Create a new context with defaults inferred from the simulation's config."""
 
         # Create a read-only terrain grid
-        terrain_grid = build_terrain_grid(config.grid_dims)
+        terrain_grid = config.initial_grid.copy()
         terrain_grid.setflags(write=False)
 
-        # Defines how long each cell should burn for in hours/km2
-        burn_times = np.zeros(config.grid_dims, dtype=np.int16)
-        burn_times[config.initial_grid == FOREST_STATE] = 30 * 24  # 1 month/km2
-        burn_times[config.initial_grid == CHAPARRAL_STATE] = 3 * 24  # 3 days/km2
-        burn_times[config.initial_grid == FLAMMABLE_SCRUBLAND_STATE] = 6  # 6 hours/km2
+        # Burn durations in hours, independent of cell area. 
+        burn_times = np.zeros(config.grid_dims, dtype=float)
+        for state, max_burn_time in cls.max_burn_times.items():
+            state_indicies = config.initial_grid == state
+
+            # Introduce some randomness for the amount of days a terrain square will burn for
+            random_multipliers = cls.rng.uniform(cls.min_burn_time_random_multiplier, 1.0, size=state_indicies.sum())
+            burn_times[state_indicies] = max_burn_time * random_multipliers
 
         # Convert this to the number of simulation steps that a cell should burn for
-        fuel_grid = np.ceil(burn_times * cls.cell_km ** 2 / cls.timestep_hours).astype(int)
-        fuel_grid[config.initial_grid == BURNING_STATE] = -1  # Initial burning cells have infinite fuel
+        fuel_grid = np.ceil(burn_times / cls.timestep_hours).astype(int)
+        fuel_grid[terrain_grid == BURNING_STATE] = -1  # Initial burning cells have infinite fuel
 
         # Wind constants from alexandridis (2008) - wind speed in m/s
         WIND_C1 = 0.045
@@ -199,7 +208,9 @@ def setup(args):
     ]
     config.grid_dims = (200, 200)
 
-    config.initial_grid = build_terrain_grid(config.grid_dims)
+    if config.initial_grid is None:
+        config.initial_grid = build_terrain_grid(config.grid_dims)
+
     # Stored on the config so the GUI can show it with the "Show height map" button
     config.heights = build_height_grid(config.grid_dims)
 
@@ -240,16 +251,6 @@ def get_fire_spread_probability(states: np.ndarray, fire_exposure: np.ndarray, c
     spread = spread_rates * fire_exposure * ctx.timestep_hours / ctx.cell_km
 
     return 1 - np.exp(-spread)
-
-
-def get_wind_weights(wind_from_deg: float, wind_speed: float) -> np.ndarray:
-    """Returns one spread multiplier per neighbour (in neighbourstates order).
-
-    Fire from a neighbour on the side the wind is coming from is blown
-    onto the cell, so it gets a weight above 1. Fire from a neighbour
-    downwind has to burn against the wind, so it gets a weight below 1.
-    With no wind every weight is 1.
-    """
 
 
 def get_fire_exposure(neighbourstates: np.ndarray, ctx: Context) -> np.ndarray:
