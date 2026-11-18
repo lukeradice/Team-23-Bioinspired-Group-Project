@@ -149,7 +149,25 @@ class Display(object):
         if getattr(self.ca_config, "heights", None) is not None:
             tk.Button(self.lbotframe, text="Show height map",
                       command=self.show_heights).pack(side=tk.BOTTOM)
+        if hasattr(self.ca_config, "timestep_hours"):
+            tk.Button(self.lbotframe, text="Show town arrival",
+                      command=self.show_town_arrival).pack(side=tk.BOTTOM)
         self.lbotframe.pack(fill=tk.BOTH, expand=True)
+
+    def show_town_arrival(self):
+        """Open a window showing the latest run's town arrival time."""
+        window = tk.Toplevel(self.root)
+        window.wm_title("Fire arrival at town")
+        if not hasattr(self.ca_config, "town_arrival_step"):
+            message = "Run the simulation to calculate town arrival"
+        elif self.ca_config.town_arrival_step is None:
+            message = "Town not reached during this simulation"
+        else:
+            step = self.ca_config.town_arrival_step
+            hours = step * self.ca_config.timestep_hours
+            message = "Step: {}\nTime: {:.1f} hours".format(step, hours)
+        tk.Label(window, text=message, font=("Helvetica", 20),
+                 padx=30, pady=30).pack()
 
     def show_heights(self):
         """Open a window showing the CA's height map as a heatmap"""

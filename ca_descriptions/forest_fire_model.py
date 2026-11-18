@@ -15,7 +15,8 @@ sys.path.append(main_dir_loc + 'capyle/guicomponents')
 from capyle.ca import Grid2D
 import capyle.utils as utils
 import numpy as np
-from typing import NamedTuple
+from dataclasses import dataclass
+from typing import Optional
 
 BURNING_STATE = 0
 BURNT_STATE = 1
@@ -102,16 +103,30 @@ def get_slope_weights(heights: np.ndarray, cell_km: float) -> np.ndarray:
     return np.array(weights)
 
 
-class Context(NamedTuple):
+@dataclass
+class Context:
+    # --- Non-default arguments must be first ---
+    terrain_grid: np.ndarray
+    fuel_grid: np.ndarray
+    # spread multiplier for each neighbour, in neighbourstates order
+    wind_weights: np.ndarray
+    # spread multiplier for each neighbour of each cell from the terrain slope, shape (8, rows, cols)
+    slope_weights: np.ndarray
+
+    # --- Default arguments ---
     cell_km = 0.25
     timestep_hours = 0.2
     # Direction the wind blows from in compass degrees (0 = northerly, 90 = easterly)
     wind_from_deg = 0.0
     # Wind speed in m/s
     wind_speed = 0.0
+    # The current simulation step
+    step = 0
+    # The step at which it arrives at the town
+    town_arrival_step: Optional[int] = None
 
     # Define random seed
-    rng = np.random.Generator = np.random.default_rng(67)
+    rng: np.random.Generator = np.random.default_rng(67)
 
     # Burn times independent of cell area in hours
     max_burn_times = {
@@ -120,14 +135,7 @@ class Context(NamedTuple):
         FLAMMABLE_SCRUBLAND_STATE: 6 # 6 hours
     }
     # Burn time for a square will be at least 80% of the maximum in max_burn_times
-    min_burn_time_random_multiplier = 0.8 
-
-    terrain_grid: np.ndarray
-    fuel_grid: np.ndarray
-    # spread multiplier for each neighbour, in neighbourstates order
-    wind_weights: np.ndarray
-    # spread multiplier for each neighbour of each cell from the terrain slope, shape (8, rows, cols)
-    slope_weights: np.ndarray
+    min_burn_time_random_multiplier = 0.8
 
     @classmethod
     def from_config(cls, config):
@@ -216,6 +224,7 @@ def setup(args):
 
     # Stored on the config so the GUI can show it with the "Show height map" button
     config.heights = build_height_grid(config.grid_dims)
+    config.timestep_hours = Context.timestep_hours
 
     # INCERATOR_LOCATION = (0, config.grid_dims[1] - 1) # top right corner
     # config.initial_grid[INCERATOR_LOCATION] = BURNING_STATE
@@ -252,8 +261,13 @@ def get_fire_spread_probability(states: np.ndarray, fire_exposure: np.ndarray, c
     spread_rates[states == FLAMMABLE_SCRUBLAND_STATE] = 3.0
 
     spread = spread_rates * fire_exposure * ctx.timestep_hours / ctx.cell_km
+    probability = 1 - np.exp(-spread)
 
-    return 1 - np.exp(-spread)
+    # For testing, say that the town spread probability is 1
+    # So it will ignite immediately after its neighbours do
+    probability[states == TOWN_STATE] = fire_exposure[states == TOWN_STATE] > 0
+
+    return probability
 
 
 def get_fire_exposure(neighbourstates: np.ndarray, ctx: Context) -> np.ndarray:
@@ -267,6 +281,8 @@ def get_fire_exposure(neighbourstates: np.ndarray, ctx: Context) -> np.ndarray:
 def transition_function(grid, neighbourstates, neighbourcounts, ctx: Context):
     """Function to apply the transition rules
     and return the new grid"""
+
+    ctx.step += 1
 
     # -- Consume fuel/burn out fires --
 
@@ -287,6 +303,12 @@ def transition_function(grid, neighbourstates, neighbourcounts, ctx: Context):
 
     grid[igniting] = BURNING_STATE
 
+    # --- Check if fire spread to the town ---
+
+    town_lit = np.any((grid == BURNING_STATE) & (ctx.terrain_grid == TOWN_STATE))
+    if ctx.town_arrival_step is None and town_lit:
+        ctx.town_arrival_step = ctx.step
+
     return grid
 
 
@@ -296,10 +318,15 @@ def main():
     config = setup(sys.argv[1:])
 
     # Create grid object using parameters from config + transition function
-    grid = Grid2D(config, (transition_function, Context.from_config(config)))
+    ctx = Context.from_config(config)
+    grid = Grid2D(config, (transition_function, ctx))
 
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
+
+    # Save simple values so the GUI can display the result on demand.
+    config.town_arrival_step = ctx.town_arrival_step
+    config.timestep_hours = ctx.timestep_hours
 
     # Save updated config to file
     config.save()
