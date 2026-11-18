@@ -128,7 +128,7 @@ class Context:
     # Temperature weight determination
     ambient_temperature = 20
     # Timestep the 12.5km^2 of water is dropped
-    water_deploy_timestep = 100
+    water_deploy_timestep = -1 # put to -1 if you want to disable
 
     # Define random seed
     rng: np.random.Generator = np.random.default_rng(67)
@@ -178,9 +178,8 @@ class Context:
 
         slope_weights = get_slope_weights(config.heights, cls.cell_km)
 
-        TEMPERATURE_REF = 20 # at this temperature, the temperature weight is 1
-        Q10 = 1.25 # every 10 degrees weight goes up by 25%
-        temperature_weight = Q10 ** ((cls.ambient_temperature - TEMPERATURE_REF) / 10.0)
+        TEMPERATRE_REF = 20 # no temperature weighting at 20 degrees C
+        temperature_weight = max(0, 1 + 0.02 * (cls.ambient_temperature - TEMPERATRE_REF))
 
         return cls(
             terrain_grid=terrain_grid,
@@ -270,7 +269,7 @@ def get_fire_spread_probability(states: np.ndarray, fire_exposure: np.ndarray, c
     # ~3km/h - Cruz & Alexander (2019)
     spread_rates[states == FLAMMABLE_SCRUBLAND_STATE] = 3.0
 
-    spread = spread_rates * fire_exposure * ctx.timestep_hours / ctx.cell_km
+    spread = spread_rates * ctx.temperature_weight * fire_exposure * ctx.timestep_hours / ctx.cell_km
     probability = 1 - np.exp(-spread)
 
     # For testing, say that the town spread probability is 1
@@ -285,7 +284,7 @@ def get_fire_exposure(neighbourstates: np.ndarray, ctx: Context) -> np.ndarray:
     burning = neighbourstates == BURNING_STATE  # shape (8, rows, cols)
 
     # multiply each of the 8 neighbour grids by its wind and slope weight then add them up
-    return np.sum(ctx.temperature_weight * ctx.wind_weights[:, None, None] * ctx.slope_weights * burning, axis=0)
+    return np.sum(ctx.wind_weights[:, None, None] * ctx.slope_weights * burning, axis=0)
 
 
 def transition_function(grid, neighbourstates, neighbourcounts, ctx: Context):
