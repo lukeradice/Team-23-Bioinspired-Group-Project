@@ -3,6 +3,7 @@ import tkinter as tk
 import tkinter.font as tkFont
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
 from capyle.utils import (set_icon, get_filename_dialog, get_logo,
                           prerun_ca, run_ca, extract_states)
 from capyle.ca import CAConfig
@@ -144,7 +145,21 @@ class Display(object):
                                  text="Apply configuration & run CA",
                                  command=self.run_ca)
         self.btn_run.pack(side=tk.BOTTOM, pady=10)
+        # Only CA descriptions that set config.heights get this button
+        if getattr(self.ca_config, "heights", None) is not None:
+            tk.Button(self.lbotframe, text="Show height map",
+                      command=self.show_heights).pack(side=tk.BOTTOM)
         self.lbotframe.pack(fill=tk.BOTH, expand=True)
+
+    def show_heights(self):
+        """Open a window showing the CA's height map as a heatmap"""
+        window = tk.Toplevel(self.root)
+        window.wm_title("Height map")
+        fig = Figure(figsize=(6, 5))
+        ax = fig.add_subplot()
+        im = ax.imshow(self.ca_config.heights, cmap="terrain")
+        fig.colorbar(im, ax=ax, label="Height (m)")
+        FigureCanvasTkAgg(fig, master=window).get_tk_widget().pack()
 
     def load_ca(self, filepath):
         """Load a CA description file
