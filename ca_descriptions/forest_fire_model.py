@@ -112,6 +112,7 @@ class Context:
     wind_weights: np.ndarray
     # spread multiplier for each neighbour of each cell from the terrain slope, shape (8, rows, cols)
     slope_weights: np.ndarray
+    temperature_weight: float
 
     # --- Default arguments ---
     cell_km = 0.25
@@ -124,6 +125,11 @@ class Context:
     step = 0
     # The step at which it arrives at the town
     town_arrival_step: Optional[int] = None
+    # Temperature weight determination
+    ambient_temperature = 20
+    temperature_ref = 20 # at this temperature, the temperature weight is 1
+    q10 = 1.25 # every 10 degrees weight goes up by 25%
+    temperature_weight = q10 ** ((ambient_temperature - temperature_ref) / 10.0)
 
     # Define random seed
     rng: np.random.Generator = np.random.default_rng(67)
@@ -172,6 +178,8 @@ class Context:
         wind_weights = np.exp(WIND_C1 * cls.wind_speed) * np.exp(WIND_C2 * cls.wind_speed * (np.cos(angles) - 1))
 
         slope_weights = get_slope_weights(config.heights, cls.cell_km)
+
+        print(f"temperature weight: {cls.temperature_weight}")
 
         return cls(
             terrain_grid=terrain_grid,
@@ -275,7 +283,7 @@ def get_fire_exposure(neighbourstates: np.ndarray, ctx: Context) -> np.ndarray:
     burning = neighbourstates == BURNING_STATE  # shape (8, rows, cols)
 
     # multiply each of the 8 neighbour grids by its wind and slope weight then add them up
-    return np.sum(ctx.wind_weights[:, None, None] * ctx.slope_weights * burning, axis=0)
+    return np.sum(ctx.temperature_weight * ctx.wind_weights[:, None, None] * ctx.slope_weights * burning, axis=0)
 
 
 def transition_function(grid, neighbourstates, neighbourcounts, ctx: Context):
