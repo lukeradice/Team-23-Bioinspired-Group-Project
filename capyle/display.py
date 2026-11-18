@@ -41,6 +41,9 @@ class Display(object):
         self.playback_controls = _PlaybackControls(self)
         # add screenshot ui to top right
         self.screenshotui = _ScreenshotUI(self.rtopframe)
+        self.btn_town_arrival = tk.Button(
+            self.screenshotui.action_frame, text="Show town arrival",
+            command=self.show_town_arrival)
         self.init_config_ui()
 
         # Add placeholder canvas to be replaced by graph after run
@@ -149,9 +152,11 @@ class Display(object):
         if getattr(self.ca_config, "heights", None) is not None:
             tk.Button(self.lbotframe, text="Show height map",
                       command=self.show_heights).pack(side=tk.BOTTOM)
+        self.btn_town_arrival.pack_forget()
+        self.playback_controls.ui.disable_widget(
+            self.playback_controls.ui.btn_town_ignition)
         if hasattr(self.ca_config, "timestep_hours"):
-            tk.Button(self.lbotframe, text="Show town arrival",
-                      command=self.show_town_arrival).pack(side=tk.BOTTOM)
+            self.btn_town_arrival.pack(side=tk.LEFT, padx=(5, 0))
         self.lbotframe.pack(fill=tk.BOTH, expand=True)
 
     def show_town_arrival(self):

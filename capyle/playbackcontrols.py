@@ -109,6 +109,16 @@ class _PlaybackControls():
         """
         self.frame_delay = 1000//int(fps)
 
+    def jump_to_town_ignition(self):
+        """Pause playback and display the first frame where the town ignites."""
+        step = getattr(self.display.ca_config, 'town_arrival_step', None)
+        if step is None or not 0 <= step <= self.maxframe:
+            return
+        self.playing = False
+        self.set_play_pause_text()
+        self.set_displayed_frame(step)
+        self.scrub(step)
+
     def reset(self):
         """Reset the play state to not playing, at frame 0"""
         self.playing = False
@@ -137,3 +147,8 @@ class _PlaybackControls():
         self.ui.scrubbing_slider.config(to=maxframe,
                                         command=lambda x: self.scrub(x))
         self.scrub(self.current_frame)
+        step = getattr(self.display.ca_config, 'town_arrival_step', None)
+        if step is not None and 0 <= step <= self.maxframe:
+            self.ui.enable_widget(self.ui.btn_town_ignition)
+        else:
+            self.ui.disable_widget(self.ui.btn_town_ignition)

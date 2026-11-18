@@ -26,9 +26,11 @@ class _ScreenshotUI(tk.Frame):
         self.l_saved = tk.Label(self, text="")
         self.l_saved.pack()
 
-        btn_take = tk.Button(self, text="Take screenshot",
+        self.action_frame = tk.Frame(self)
+        self.action_frame.pack()
+        btn_take = tk.Button(self.action_frame, text="Take screenshot",
                              command=self.take)
-        btn_take.pack()
+        btn_take.pack(side=tk.LEFT)
 
         self.uielements = [btn_take]
 

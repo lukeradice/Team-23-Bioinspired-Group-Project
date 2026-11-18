@@ -36,6 +36,9 @@ class _PlaybackUI(tk.Frame):
         # Reset button
         btn_reset = tk.Button(self, text="Reset", state=tk.DISABLED,
                               command=self.controls.reset)
+        self.btn_town_ignition = tk.Button(
+            self, text="Jump to town ignition", state=tk.DISABLED,
+            command=self.controls.jump_to_town_ignition)
 
         # Main playback slider (scrubbing slider)
         self.sliderframe = tk.Frame(self.controls.display.rbotframe)
@@ -65,6 +68,7 @@ class _PlaybackUI(tk.Frame):
         self.fpsframe.pack(fill=tk.BOTH, pady=5, padx=10)
         for btn in self.btns:
             btn.pack(side=tk.LEFT)
+        self.btn_town_ignition.pack(side=tk.LEFT, padx=(5, 0))
 
     def enable(self):
         for widget in self.ui_controls:
