@@ -127,9 +127,8 @@ class Context:
     town_arrival_step: Optional[int] = None
     # Temperature weight determination
     ambient_temperature = 20
-    temperature_ref = 20 # at this temperature, the temperature weight is 1
-    q10 = 1.25 # every 10 degrees weight goes up by 25%
-    temperature_weight = q10 ** ((ambient_temperature - temperature_ref) / 10.0)
+    # Timestep the 12.5km^2 of water is dropped
+    water_deploy_timestep = 100
 
     # Define random seed
     rng: np.random.Generator = np.random.default_rng(67)
@@ -179,13 +178,16 @@ class Context:
 
         slope_weights = get_slope_weights(config.heights, cls.cell_km)
 
-        print(f"temperature weight: {cls.temperature_weight}")
+        TEMPERATURE_REF = 20 # at this temperature, the temperature weight is 1
+        Q10 = 1.25 # every 10 degrees weight goes up by 25%
+        temperature_weight = Q10 ** ((cls.ambient_temperature - TEMPERATURE_REF) / 10.0)
 
         return cls(
             terrain_grid=terrain_grid,
             fuel_grid=fuel_grid,
             wind_weights=wind_weights,
-            slope_weights=slope_weights
+            slope_weights=slope_weights,
+            temperature_weight=temperature_weight
         )
 
 
@@ -234,11 +236,11 @@ def setup(args):
     config.heights = build_height_grid(config.grid_dims)
     config.timestep_hours = Context.timestep_hours
 
-    # INCERATOR_LOCATION = (0, config.grid_dims[1] - 1) # top right corner
-    # config.initial_grid[INCERATOR_LOCATION] = BURNING_STATE
+    INCERATOR_LOCATION = (0, config.grid_dims[1] - 1) # top right corner
+    config.initial_grid[INCERATOR_LOCATION] = BURNING_STATE
 
-    POWER_PLANT_LOCATION = (0, 0)
-    config.initial_grid[POWER_PLANT_LOCATION] = BURNING_STATE
+    # POWER_PLANT_LOCATION = (0, 0)
+    # config.initial_grid[POWER_PLANT_LOCATION] = BURNING_STATE
 
     # Stop fire crossing an edge and reappearing on the opposite side.
     config.wrap = False
@@ -311,6 +313,11 @@ def transition_function(grid, neighbourstates, neighbourcounts, ctx: Context):
 
     grid[igniting] = BURNING_STATE
 
+    #  --- Deploy water ---
+
+    if ctx.step == ctx.water_deploy_timestep:
+        grid = deploy_water(grid)
+
     # --- Check if fire spread to the town ---
 
     town_lit = np.any((grid == BURNING_STATE) & (ctx.terrain_grid == TOWN_STATE))
@@ -319,6 +326,16 @@ def transition_function(grid, neighbourstates, neighbourcounts, ctx: Context):
 
     return grid
 
+def deploy_water(grid):
+    '''Function to return the grid with 12.5km^2 of the cells replaced with the lake state to simulate water being dropped'''
+
+    # Line 1
+    grid[0:100, 100] = LAKE_STATE
+
+    # Line 2 
+    grid[100, 100:199] = LAKE_STATE
+
+    return grid
 
 def main():
     """ Main function that sets up, runs and saves CA"""
