@@ -12,7 +12,7 @@ sys.path.append(main_dir_loc + 'capyle/ca')
 sys.path.append(main_dir_loc + 'capyle/guicomponents')
 # ---
 
-from capyle.ca import Grid2D
+from capyle.ca import Grid2D, CAConfig
 import capyle.utils as utils
 import numpy as np
 from dataclasses import dataclass
@@ -192,8 +192,8 @@ class Context:
 
 def setup(args):
     """Set up the config object used to interact with the GUI"""
-    config_path = args[0]
-    config = utils.load(config_path)
+    # No args means a headless run, so there is no GUI config file to load
+    config = utils.load(args[0]) if args else CAConfig(this_file_loc)
     # -- THE CA MUST BE RELOADED IN THE GUI IF ANY OF THE BELOW ARE CHANGED --
     config.title = "FOREST FIRE MODEL CA"
     config.dimensions = 2
@@ -357,5 +357,28 @@ def main():
     # Save timeline to file
     utils.save(timeline, config.timeline_path)
 
+
+def run_headless(max_steps=10_000):
+    """Run without the GUI until the fire reaches the town, then print when it did."""
+    config = setup([])
+    config.fill_in_defaults()
+    ctx = Context.from_config(config)
+    grid = Grid2D(config, (transition_function, ctx))
+
+    # Step manually, grid.run() would open a progress window
+    while ctx.town_arrival_step is None and ctx.step < max_steps:
+        grid.step()
+
+    if ctx.town_arrival_step is None:
+        print(f"Fire did not reach the town within {max_steps} steps")
+    else:
+        hours = ctx.town_arrival_step * ctx.timestep_hours
+        print(f"Fire reached the town at step {ctx.town_arrival_step} ({hours:.1f} hours)")
+
+
 if __name__ == "__main__":
-    main()
+    # The GUI always passes a config path, so no args means headless
+    if len(sys.argv) > 1:
+        main()
+    else:
+        run_headless()
