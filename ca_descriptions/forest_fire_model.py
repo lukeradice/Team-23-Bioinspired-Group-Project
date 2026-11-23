@@ -233,7 +233,6 @@ def setup(args):
 
     # Stored on the config so the GUI can show it with the "Show height map" button
     config.heights = build_height_grid(config.grid_dims)
-    config.timestep_hours = Context.timestep_hours
 
     INCERATOR_LOCATION = (0, config.grid_dims[1] - 1) # top right corner
     config.initial_grid[INCERATOR_LOCATION] = BURNING_STATE
@@ -250,6 +249,7 @@ def setup(args):
     # into the main system with an extra argument
     # do not change
     if len(args) == 2:
+        config.town_arrival_step = None  # Show the town arrival button before the first run.
         config.save()
         sys.exit()
     return config
@@ -348,7 +348,7 @@ def main():
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
 
-    # Save simple values so the GUI can display the result on demand.
+    # Playback uses the run's timestep to convert its arrival frame to hours.
     config.town_arrival_step = ctx.town_arrival_step
     config.timestep_hours = ctx.timestep_hours
 

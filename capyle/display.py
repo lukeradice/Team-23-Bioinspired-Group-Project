@@ -155,7 +155,7 @@ class Display(object):
         self.btn_town_arrival.pack_forget()
         self.playback_controls.ui.disable_widget(
             self.playback_controls.ui.btn_town_ignition)
-        if hasattr(self.ca_config, "timestep_hours"):
+        if hasattr(self.ca_config, "town_arrival_step"):
             self.btn_town_arrival.pack(side=tk.LEFT, padx=(5, 0))
         self.lbotframe.pack(fill=tk.BOTH, expand=True)
 
@@ -163,7 +163,7 @@ class Display(object):
         """Open a window showing the latest run's town arrival time."""
         window = tk.Toplevel(self.root)
         window.wm_title("Fire arrival at town")
-        if not hasattr(self.ca_config, "town_arrival_step"):
+        if not hasattr(self.ca_config, "timestep_hours"):
             message = "Run the simulation to calculate town arrival"
         elif self.ca_config.town_arrival_step is None:
             message = "Town not reached during this simulation"
