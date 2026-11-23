@@ -16,6 +16,7 @@ from capyle.ca import Grid2D, CAConfig
 import capyle.utils as utils
 import numpy as np
 from dataclasses import dataclass
+from math import ceil
 from typing import Optional
 
 BURNING_STATE = 0
@@ -113,6 +114,7 @@ class Context:
     # spread multiplier for each neighbour of each cell from the terrain slope, shape (8, rows, cols)
     slope_weights: np.ndarray
     temperature_weight: float
+    water_deploy_timestep: int
 
     # --- Default arguments ---
     cell_km = 0.25
@@ -127,8 +129,8 @@ class Context:
     town_arrival_step: Optional[int] = None
     # Temperature weight determination
     ambient_temperature = 20
-    # Timestep the 12.5km^2 of water is dropped
-    water_deploy_timestep = -1 # put to -1 if you want to disable
+    # Hour the 12.5km^2 of water is dropped
+    water_deploy_hours = -1 # put to -1 if you want to disable
 
     # Define random seed
     rng: np.random.Generator = np.random.default_rng(67)
@@ -186,7 +188,8 @@ class Context:
             fuel_grid=fuel_grid,
             wind_weights=wind_weights,
             slope_weights=slope_weights,
-            temperature_weight=temperature_weight
+            temperature_weight=temperature_weight,
+            water_deploy_timestep=ceil(cls.water_deploy_hours / cls.timestep_hours),
         )
 
 
@@ -348,7 +351,7 @@ def main():
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
 
-    # Playback uses the run's timestep to convert its arrival frame to hours.
+    # Save simple values so the GUI can display the result on demand.
     config.town_arrival_step = ctx.town_arrival_step
     config.timestep_hours = ctx.timestep_hours
 
