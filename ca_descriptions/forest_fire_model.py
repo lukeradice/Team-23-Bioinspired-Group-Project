@@ -76,6 +76,7 @@ def build_height_grid(grid_dims: Tuple[int, int], seed: int = 42) -> np.ndarray:
         distance = np.hypot(rows - peak_row, cols - peak_col)
         heights += peak_height * np.maximum(0, 1 - distance / radius)
 
+    heights.setflags(write=False)
     return heights
 
 
@@ -144,6 +145,7 @@ class Context:
 
         # Get how long each cell should burn for in hours
         burn_durations_hours = cls.get_burn_durations_hours(terrain_grid, rng)
+        burn_durations_hours.setflags(write=False)
         
         # Create a grid which will contain when each cell ignited (in hours from simulation start)
         # Sources ignite at hour zero. Infinity means it hasn't ignited yet.
@@ -152,6 +154,7 @@ class Context:
 
         # Wind changes the spread speed according to the direction the fire travels.
         wind_weights = cls.get_wind_weights()
+        wind_weights.setflags(write=False)
 
         # Each degree above or below the reference adjusts spread speed by 2% of the base speed.
         TEMPERATRE_REF = 20 # no temperature weighting at 20 degrees C
@@ -159,6 +162,7 @@ class Context:
 
         # For each cell, the slope from each neighbour determines its uphill or downhill multiplier.
         slope_weights = cls.get_slope_weights(config.heights)
+        slope_weights.setflags(write=False)
 
         # Get the time it takes for fire to spread from each cell to its neighbours in hours
         neighbour_spread_time_hours = cls.get_neighbour_spread_times(
@@ -167,6 +171,7 @@ class Context:
             temperature_weight * wind_weights * slope_weights,
             rng
         )
+        neighbour_spread_time_hours.setflags(write=False)
 
         # Get the timestep at which water should be deployed
         water_deploy_timestep = ceil(cls.water_deploy_hours / cls.timestep_hours)

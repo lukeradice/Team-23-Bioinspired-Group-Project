@@ -84,6 +84,14 @@ class TestFireSpread(unittest.TestCase):
                 engine.step()
             self.assertTrue(np.isinf(ctx.ignited_at_hours[2, 2]))
 
+    def test_setup_arrays_are_read_only_and_ignition_times_can_update(self):
+        self.config.heights = fire.build_height_grid(self.config.grid_dims)
+        ctx = fire.Context.from_config(self.config)
+        for array in (self.config.heights, ctx.terrain_grid, ctx.burn_durations_hours,
+                      ctx.neighbour_spread_time_hours):
+            self.assertFalse(array.flags.writeable)
+        self.assertTrue(ctx.ignited_at_hours.flags.writeable)
+
     def test_crossing_times_respect_distance_and_the_neighbourhood_mask(self):
         self.config.nhood_arr[0, 0] = 0
         with patch.object(fire.np.random, 'default_rng') as make_rng:
