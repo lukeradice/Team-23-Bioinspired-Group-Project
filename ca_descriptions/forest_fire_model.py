@@ -115,6 +115,7 @@ class Context:
     slope_weights: np.ndarray
     temperature_weight: float
     water_deploy_timestep: int
+    rng: np.random.Generator
 
     # --- Default arguments ---
     cell_km = 0.25
@@ -133,7 +134,7 @@ class Context:
     water_deploy_hours = -1 # put to -1 if you want to disable
 
     # Define random seed
-    rng: np.random.Generator = np.random.default_rng(67)
+    seed = 67
 
     # Burn times independent of cell area in hours
     max_burn_times = {
@@ -148,6 +149,9 @@ class Context:
     def from_config(cls, config):
         """Create a new context with defaults inferred from the simulation's config."""
 
+        # Create new random generator
+        rng = np.random.default_rng(cls.seed)
+
         # Create a read-only terrain grid
         terrain_grid = config.initial_grid.copy()
         terrain_grid.setflags(write=False)
@@ -158,7 +162,7 @@ class Context:
             state_indicies = config.initial_grid == state
 
             # Introduce some randomness for the amount of days a terrain square will burn for
-            random_multipliers = cls.rng.uniform(cls.min_burn_time_random_multiplier, 1.0, size=state_indicies.sum())
+            random_multipliers = rng.uniform(cls.min_burn_time_random_multiplier, 1.0, size=state_indicies.sum())
             burn_times[state_indicies] = max_burn_time * random_multipliers
 
         # Convert this to the number of simulation steps that a cell should burn for
@@ -190,6 +194,7 @@ class Context:
             slope_weights=slope_weights,
             temperature_weight=temperature_weight,
             water_deploy_timestep=ceil(cls.water_deploy_hours / cls.timestep_hours),
+            rng=rng,
         )
 
 
