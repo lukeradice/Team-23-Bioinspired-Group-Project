@@ -79,31 +79,6 @@ def build_height_grid(grid_dims, seed=42):
     return heights
 
 
-def get_slope_weights(heights: np.ndarray, cell_km: float) -> np.ndarray:
-    """Returns a spread multiplier for every neighbour of every cell, shape (8, rows, cols).
-
-    Fire climbing from a lower neighbour up to a cell gets a weight above 1,
-    fire running downhill gets a weight below 1. Flat ground gives 1.
-    """
-    # Slope constant from alexandridis (2008), per degree of slope
-    SLOPE_A = 0.078
-
-    # Same order as CAPyLE's neighbourstates: NW, N, NE, W, E, SW, S, SE
-    NEIGHBOUR_OFFSETS = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
-
-    rows, cols = heights.shape
-    padded = np.pad(heights, 1, mode='edge')
-
-    weights = []
-    for dr, dc in NEIGHBOUR_OFFSETS:
-        neighbour_heights = padded[1 + dr:1 + dr + rows, 1 + dc:1 + dc + cols]
-        distance_m = np.hypot(dr, dc) * cell_km * 1000  # diagonals are further away
-        slope_deg = np.degrees(np.arctan((heights - neighbour_heights) / distance_m))
-        weights.append(np.exp(SLOPE_A * slope_deg))
-
-    return np.array(weights)
-
-
 @dataclass
 class Context:
     # --- Non-default arguments must be first ---
@@ -118,6 +93,8 @@ class Context:
     rng: np.random.Generator
 
     # --- Default arguments ---
+    # Same order as CAPyLE's neighbourstates: NW, N, NE, W, E, SW, S, SE
+    neighbour_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
     cell_km = 0.25
     timestep_hours = 0.2
     # Direction the wind blows from in compass degrees (0 = northerly, 90 = easterly)
@@ -169,20 +146,8 @@ class Context:
         fuel_grid = np.ceil(burn_times / cls.timestep_hours).astype(int)
         fuel_grid[terrain_grid == BURNING_STATE] = -1  # Initial burning cells have infinite fuel
 
-        # Wind constants from alexandridis (2008) - wind speed in m/s
-        WIND_C1 = 0.045
-        WIND_C2 = 0.131
-
-        # Compass bearing (degrees clockwise from north) of each neighbour
-        # in the same order as CAPyLE's neighbourstates: NW, N, NE, W, E, SW, S, SE
-        NEIGHBOUR_BEARINGS = np.array([315, 0, 45, 270, 90, 225, 180, 135])
-
-        # angle between the wind and the direction fire travels from each neighbour
-        angles = np.radians(NEIGHBOUR_BEARINGS - cls.wind_from_deg)
-
-        wind_weights = np.exp(WIND_C1 * cls.wind_speed) * np.exp(WIND_C2 * cls.wind_speed * (np.cos(angles) - 1))
-
-        slope_weights = get_slope_weights(config.heights, cls.cell_km)
+        wind_weights = cls.get_wind_weights()
+        slope_weights = cls.get_slope_weights(config.heights)
 
         TEMPERATRE_REF = 20 # no temperature weighting at 20 degrees C
         temperature_weight = max(0, 1 + 0.02 * (cls.ambient_temperature - TEMPERATRE_REF))
@@ -196,6 +161,46 @@ class Context:
             water_deploy_timestep=ceil(cls.water_deploy_hours / cls.timestep_hours),
             rng=rng,
         )
+
+    @classmethod
+    def get_wind_weights(cls) -> np.ndarray:
+        # Wind constants from alexandridis (2008) - wind speed in m/s
+        WIND_C1 = 0.045
+        WIND_C2 = 0.131
+
+        # Compass bearing (degrees clockwise from north) of each neighbour
+        # in the same order as CAPyLE's neighbourstates: NW, N, NE, W, E, SW, S, SE
+        NEIGHBOUR_BEARINGS = np.array([315, 0, 45, 270, 90, 225, 180, 135])
+
+        # angle between the wind and the direction fire travels from each neighbour
+        angles = np.radians(NEIGHBOUR_BEARINGS - cls.wind_from_deg)
+
+        wind_weights = np.exp(WIND_C1 * cls.wind_speed) * np.exp(WIND_C2 * cls.wind_speed * (np.cos(angles) - 1))
+        
+        # Shape (8, 1, 1) applies each direction's wind weight to every row and column.
+        return wind_weights[:, None, None]
+
+    @classmethod
+    def get_slope_weights(cls, heights: np.ndarray) -> np.ndarray:
+        """Returns a spread multiplier for every neighbour of every cell, shape (8, rows, cols).
+
+        Fire climbing from a lower neighbour up to a cell gets a weight above 1,
+        fire running downhill gets a weight below 1. Flat ground gives 1.
+        """
+        # Slope constant from alexandridis (2008), per degree of slope
+        SLOPE_A = 0.078
+
+        rows, cols = heights.shape
+        padded = np.pad(heights, 1, mode='edge')
+
+        weights = []
+        for dr, dc in cls.neighbour_offsets:
+            neighbour_heights = padded[1 + dr:1 + dr + rows, 1 + dc:1 + dc + cols]
+            distance_m = np.hypot(dr, dc) * cls.cell_km * 1000  # diagonals are further away
+            slope_deg = np.degrees(np.arctan((heights - neighbour_heights) / distance_m))
+            weights.append(np.exp(SLOPE_A * slope_deg))
+
+        return np.array(weights)
 
 
 def setup(args):
@@ -292,7 +297,7 @@ def get_fire_exposure(neighbourstates: np.ndarray, ctx: Context) -> np.ndarray:
     burning = neighbourstates == BURNING_STATE  # shape (8, rows, cols)
 
     # multiply each of the 8 neighbour grids by its wind and slope weight then add them up
-    return np.sum(ctx.wind_weights[:, None, None] * ctx.slope_weights * burning, axis=0)
+    return np.sum(ctx.wind_weights * ctx.slope_weights * burning, axis=0)
 
 
 def transition_function(grid, neighbourstates, neighbourcounts, ctx: Context):
