@@ -261,7 +261,7 @@ class Context:
         neighbour_spread_time_hours = np.full(spread_multiplier.shape, np.inf)
 
         # Determine for each cell for each of the 8 directions a spread time for that direction's neighbouring cell 
-        # to spread to it once it ignited.
+        # to spread to it once ignited.
         for i, offset in enumerate(cls.neighbour_offsets):
             dr, dc = offset
             if neighbourhood[1 + dr, 1 + dc]:
@@ -361,20 +361,27 @@ def get_fire_front(grid: np.ndarray, can_ignite: np.ndarray, ctx: Context) -> Ce
 
 
 def get_neighbour_indices_in_direction(
-    sources: CellIndices, offset: Tuple[int, int], grid_shape: Tuple[int, int],
+    fire_sources: CellIndices, offset: Tuple[int, int], grid_shape: Tuple[int, int],
 ) -> Tuple[CellIndices, np.ndarray]:
     """Find the next cell in one direction from each burning cell.
 
-    For example, when looking east, a cell on the right edge has no eastern neighbour.
     Return the row and column of each neighbour that exists, plus one True/False value
-    per burning cell so the caller can pair each neighbour with the fire it came from.
+    per burning cell to indicate if there is a valid neighbour at the offset. This is
+    so the caller can pair each neighbour with the fire it came from.
     """
-    source_rows, source_cols = sources
+    fire_source_rows, fire_source_cols = fire_sources
     dr, dc = offset
-    neighbour_rows, neighbour_cols = source_rows - dr, source_cols - dc
+    neighbour_rows, neighbour_cols = fire_source_rows - dr, fire_source_cols - dc
     rows, cols = grid_shape
-    has_neighbour = (neighbour_rows >= 0) & (neighbour_rows < rows) & (neighbour_cols >= 0) & (neighbour_cols < cols)
-    return ((neighbour_rows[has_neighbour], neighbour_cols[has_neighbour]), has_neighbour)
+
+    # ensure its only gets neighbours within the grid
+    cells_with_neighbour = ((neighbour_rows >= 0) & 
+                            (neighbour_rows < rows) & 
+                            (neighbour_cols >= 0) & 
+                            (neighbour_cols < cols))
+
+    return ((neighbour_rows[cells_with_neighbour], neighbour_cols[cells_with_neighbour]), 
+            cells_with_neighbour)
 
 
 def get_newly_lit_ignited_at_hours(
@@ -387,22 +394,22 @@ def get_newly_lit_ignited_at_hours(
     newly_lit_ignited_at_hours = np.full(grid.shape, np.inf)
 
     # Start at the fire front. A cell already burning may have ignited several frames ago.
-    sources = get_fire_front(grid, can_ignite, ctx)
-    source_ignited_at_hours = ctx.ignited_at_hours[sources]
+    fire_sources = get_fire_front(grid, can_ignite, ctx)
+    fire_source_ignited_at_hours = ctx.ignited_at_hours[fire_sources]
 
     # Follow the fire one neighbour at a time until no earlier ignition fits in this frame.
-    while source_ignited_at_hours.size > 0:
+    while fire_source_ignited_at_hours.size > 0:
         # The source must still be burning when its neighbour ignites.
-        source_burnout_hours = source_ignited_at_hours + ctx.burn_durations_hours[sources]
+        source_burnout_hours = fire_source_ignited_at_hours + ctx.burn_durations_hours[fire_sources]
         # Track which cells gain an earlier arrival during this pass through the neighbours.
         reached_earlier = np.zeros_like(grid, dtype=bool)
 
         for direction, offset in enumerate(ctx.neighbour_offsets):
-            neighbour_indices, has_neighbour = get_neighbour_indices_in_direction(sources, offset, grid.shape)
+            neighbour_indices, has_neighbour = get_neighbour_indices_in_direction(fire_sources, offset, grid.shape)
             # Each stored duration is indexed by the destination and the direction its fire comes from.
             spread_time_hours = ctx.neighbour_spread_time_hours[direction][neighbour_indices]
             # A source lit at minute 1 with a 1.4-minute spread time can ignite its neighbour at minute 2.4.
-            candidate_ignited_at_hours = source_ignited_at_hours[has_neighbour] + spread_time_hours
+            candidate_ignited_at_hours = fire_source_ignited_at_hours[has_neighbour] + spread_time_hours
 
             # Of the routes that finish by both deadlines, keep the fastest route to each eligible cell.
             finishes_in_time = (candidate_ignited_at_hours <= current_step_hours) & (candidate_ignited_at_hours <= source_burnout_hours[has_neighbour])
@@ -417,8 +424,8 @@ def get_newly_lit_ignited_at_hours(
             reached_earlier[reached] = True
 
         # An earlier arrival can also bring fire to the next neighbour sooner.
-        sources = np.nonzero(reached_earlier)
-        source_ignited_at_hours = newly_lit_ignited_at_hours[sources]
+        fire_sources = np.nonzero(reached_earlier)
+        fire_source_ignited_at_hours = newly_lit_ignited_at_hours[fire_sources]
 
     return newly_lit_ignited_at_hours
 
