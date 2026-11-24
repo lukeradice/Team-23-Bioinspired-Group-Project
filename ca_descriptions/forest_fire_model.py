@@ -426,9 +426,9 @@ def get_newly_lit_ignited_at_hours(
 
             # Record these ignition times without changing the live grid while other routes are still being checked.
             neighbour_rows, neighbour_cols = neighbour_indices
-            reached_neighbours = (neighbour_rows[is_earliest_route_so_far], neighbour_cols[is_earliest_route_so_far])
-            newly_lit_ignited_at_hours[reached_neighbours] = candidate_ignited_at_hours[is_earliest_route_so_far]
-            reached_earlier[reached_neighbours] = True
+            reached_cells = (neighbour_rows[is_earliest_route_so_far], neighbour_cols[is_earliest_route_so_far])
+            newly_lit_ignited_at_hours[reached_cells] = candidate_ignited_at_hours[is_earliest_route_so_far]
+            reached_earlier[reached_cells] = True
 
         # An earlier arrival can also bring fire to the next neighbour sooner. 
         fire_sources = np.nonzero(reached_earlier)
