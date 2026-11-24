@@ -124,7 +124,8 @@ class Context:
         FLAMMABLE_SCRUBLAND_STATE: 3.0,
     }
     # Fraction by which travel time can vary around distance / weighted spread speed.
-    spread_time_variation = 0.5
+    # Larger variations let the fire reach town earlier by following faster routes between cells.
+    spread_time_variation = 0.1
     # Burn times independent of cell area in hours
     max_burn_times = {
         FOREST_STATE: 30 * 24, # 1 month
