@@ -254,22 +254,26 @@ class Context:
 
         # Bound the variation so the fastest route cannot string together near-instant fuel crossings.
         # Draw once per neighbour and direction so changing the timestep reuses the same fire.
-        spread_time_factors = rng.uniform(1 - cls.spread_time_variation, 1 + cls.spread_time_variation,
+        random_spread_time_factors = rng.uniform(1 - cls.spread_time_variation, 1 + cls.spread_time_variation,
                                           size=spread_multiplier.shape)
 
         # Infinity means this neighbour cannot ignite the cell. Only positive rates overwrite it.
         neighbour_spread_time_hours = np.full(spread_multiplier.shape, np.inf)
 
-        for k, (dr, dc) in enumerate(cls.neighbour_offsets):
+        # Determine for each cell for each of the 8 directions a spread time for that direction's neighbouring cell 
+        # to spread to it once it ignited.
+        for i, offset in enumerate(cls.neighbour_offsets):
+            dr, dc = offset
             if neighbourhood[1 + dr, 1 + dc]:
                 distance_to_neighbour = cls.cell_km * np.hypot(dr, dc)
 
                 # Weighted speed (km/h) divided by centre-to-centre distance (km) gives the hourly rate of spread to that neighbour.
-                spread_rate_per_hour = spread_rates * spread_multiplier[k] / distance_to_neighbour
+                spread_rate_per_hour = spread_rates * spread_multiplier[i] / distance_to_neighbour
 
+                # The reciprocal of spread rate per hour gives spread time, multiply it by the random spread factor to introduce noise.
                 # For example, 0.25 km at 1 km/h takes 15 minutes on average.
-                np.divide(spread_time_factors[k], spread_rate_per_hour, out=neighbour_spread_time_hours[k], where=spread_rate_per_hour > 0)
-                neighbour_spread_time_hours[k, terrain_grid == TOWN_STATE] = 0  # Town ignites on first contact.
+                np.divide(random_spread_time_factors[i], spread_rate_per_hour, out=neighbour_spread_time_hours[i], where=spread_rate_per_hour > 0)
+            neighbour_spread_time_hours[i, terrain_grid == TOWN_STATE] = 0  # Town ignites on first contact.
 
         return neighbour_spread_time_hours
 
@@ -367,12 +371,10 @@ def get_neighbour_indices_in_direction(
     """
     source_rows, source_cols = sources
     dr, dc = offset
-    # CAPyLE's offsets point from a destination to its source.
     neighbour_rows, neighbour_cols = source_rows - dr, source_cols - dc
-    # Keep the mask so the caller can select the matching source time for each destination.
     rows, cols = grid_shape
     has_neighbour = (neighbour_rows >= 0) & (neighbour_rows < rows) & (neighbour_cols >= 0) & (neighbour_cols < cols)
-    return (neighbour_rows[has_neighbour], neighbour_cols[has_neighbour]), has_neighbour
+    return ((neighbour_rows[has_neighbour], neighbour_cols[has_neighbour]), has_neighbour)
 
 
 def get_newly_lit_ignited_at_hours(
