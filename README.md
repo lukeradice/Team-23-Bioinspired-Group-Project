@@ -35,7 +35,7 @@ Run these commands from the repository root with NumPy and Matplotlib installed.
 **Watch the fire spread.** This replays the settings used in the [example video](experiments/results/fire-spread-0p4h.mp4). Use the playback buttons or frame slider to inspect how many neighbours the fire spread through in one frame.
 
 ```sh
-python experiments/fire_spread_visualiser.py --seed 67 --timestep 0.4 --frames 127
+python experiments/fire_spread_visualiser.py --seed 67 --timestep 0.4 --frames 155
 ```
 
 **Compare town arrival across timesteps.** This runs the current model on flat chaparral with the incinerator as the source. It uses the same 50 seeds at each of eight timesteps and writes a CSV and a first-visible-frame plot to `experiments/results/`.
