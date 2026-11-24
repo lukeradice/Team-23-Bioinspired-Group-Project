@@ -352,12 +352,12 @@ def get_fire_front(grid: np.ndarray, can_ignite: np.ndarray, ctx: Context) -> Ce
     padded = np.pad(can_ignite, 1, constant_values=False)
 
     # A cell is true if one of a its neighbours can ignite.
-    beside_fuel = np.zeros_like(grid, dtype=bool)
+    has_ignitable_neighbour = np.zeros_like(grid, dtype=bool)
     for dr, dc in ctx.neighbour_offsets:
-        beside_fuel |= padded[1 - dr:1 - dr + rows, 1 - dc:1 - dc + cols]
+        has_ignitable_neighbour |= padded[1 - dr:1 - dr + rows, 1 - dc:1 - dc + cols]
 
     # Return the row and column of each burning cell along that boundary.
-    return np.nonzero((grid == BURNING_STATE) & beside_fuel)
+    return np.nonzero((grid == BURNING_STATE) & has_ignitable_neighbour)
 
 
 def get_neighbour_indices_in_direction(
