@@ -28,6 +28,24 @@ See below for a quickstart guide:
 7. After the CA has been run, use the playback controls at the top and the slider at the bottom to run through the simulation.
 8. You may save an image of the currently displayed output using the 'Take screenshot' button
 
+## Fire spread experiments
+
+Run these commands from the repository root with NumPy and Matplotlib installed. The live viewer also needs a graphical display.
+
+**Watch the fire spread.** This replays the settings used in the [example video](experiments/results/fire-spread-0p4h.mp4). Use the playback buttons or frame slider to inspect how many neighbours the fire spread through in one frame.
+
+```sh
+python experiments/fire_spread_visualiser.py --seed 67 --timestep 0.4 --frames 127
+```
+
+**Compare town arrival across timesteps.** This runs the current model on flat chaparral with the incinerator as the source. It uses the same 50 seeds at each of eight timesteps and writes a CSV and a first-visible-frame plot to `experiments/results/`.
+
+```sh
+python experiments/timestep_arrivals.py incinerator
+```
+
+For a quick run, append `--runs 3 --timesteps 0.2 0.4`. Both scripts accept `--help`. The saved [comparison graph](experiments/results/town-arrival.png) and [per-seed data](experiments/results/frame_time_comparison.csv) also include the original model.
+
 ## Acknowledgements
 Special thanks to [Dr Dawn Walker](http://staffwww.dcs.shef.ac.uk/people/D.Walker/) for proposing and supervising this project.
 
