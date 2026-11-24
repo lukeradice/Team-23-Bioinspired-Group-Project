@@ -123,6 +123,8 @@ class Context:
         # ~3km/h - Cruz & Alexander (2019)
         FLAMMABLE_SCRUBLAND_STATE: 3.0,
     }
+    # Fraction by which travel time can vary around distance / weighted spread speed.
+    spread_time_variation = 0.5
     # Burn times independent of cell area in hours
     max_burn_times = {
         FOREST_STATE: 30 * 24, # 1 month
@@ -249,9 +251,10 @@ class Context:
         for state, rate in cls.terrain_spread_rates.items():
             spread_rates[terrain_grid == state] = rate
 
-        # At a constant spread rate the waiting time is exponential. Draw once per neighbour and direction
-        # so changing the timestep reuses the same fire. A unit exponential has mean 1.
-        waiting_time_factors = rng.standard_exponential(spread_multiplier.shape)
+        # Bound the variation so the fastest route cannot string together near-instant fuel crossings.
+        # Draw once per neighbour and direction so changing the timestep reuses the same fire.
+        spread_time_factors = rng.uniform(1 - cls.spread_time_variation, 1 + cls.spread_time_variation,
+                                          size=spread_multiplier.shape)
 
         # Infinity means this neighbour cannot ignite the cell. Only positive rates overwrite it.
         neighbour_spread_time_hours = np.full(spread_multiplier.shape, np.inf)
@@ -264,7 +267,7 @@ class Context:
                 spread_rate_per_hour = spread_rates * spread_multiplier[k] / distance_to_neighbour
 
                 # For example, 0.25 km at 1 km/h takes 15 minutes on average.
-                np.divide(waiting_time_factors[k], spread_rate_per_hour, out=neighbour_spread_time_hours[k], where=spread_rate_per_hour > 0)
+                np.divide(spread_time_factors[k], spread_rate_per_hour, out=neighbour_spread_time_hours[k], where=spread_rate_per_hour > 0)
                 neighbour_spread_time_hours[k, terrain_grid == TOWN_STATE] = 0  # Town ignites on first contact.
 
         return neighbour_spread_time_hours
