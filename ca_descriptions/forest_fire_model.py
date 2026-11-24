@@ -111,6 +111,7 @@ class Context:
     # Hour the 12.5km^2 of water is dropped
     water_deploy_hours = -1 # put to -1 if you want to disable
     # Same order as CAPyLE's neighbourstates: NW, N, NE, W, E, SW, S, SE
+    # Each offset locates the source neighbour relative to a destination cell
     neighbour_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
     # Define random seed
     seed = 67
@@ -354,7 +355,7 @@ def get_fire_front(grid: np.ndarray, can_ignite: np.ndarray, ctx: Context) -> Ce
     # A cell is true if one of a its neighbours can ignite.
     has_ignitable_neighbour = np.zeros_like(grid, dtype=bool)
     for dr, dc in ctx.neighbour_offsets:
-        has_ignitable_neighbour |= padded[1 - dr:1 - dr + rows, 1 - dc:1 - dc + cols]
+        has_ignitable_neighbour |= padded[1 + dr:1 + dr + rows, 1 + dc:1 + dc + cols]
 
     # Return the row and column of each burning cell along that boundary.
     return np.nonzero((grid == BURNING_STATE) & has_ignitable_neighbour)
@@ -366,15 +367,14 @@ def get_neighbour_indices_in_direction(
     """Find the next cell in one direction from each burning cell.
 
     Return the row and column of each neighbour that exists, plus one True/False value
-    per burning cell to indicate if there is a valid neighbour at the offset. This is
-    so the caller can pair each neighbour with the fire it came from.
+    per burning cell to indicate if there is a valid neighbour at the offset. 
     """
     fire_source_rows, fire_source_cols = fire_sources
     dr, dc = offset
     neighbour_rows, neighbour_cols = fire_source_rows - dr, fire_source_cols - dc
     rows, cols = grid_shape
 
-    # ensure its only gets neighbours within the grid
+    # ensure it only gets neighbours within the grid
     cells_with_neighbour = ((neighbour_rows >= 0) & 
                             (neighbour_rows < rows) & 
                             (neighbour_cols >= 0) & 
@@ -397,33 +397,40 @@ def get_newly_lit_ignited_at_hours(
     fire_sources = get_fire_front(grid, can_ignite, ctx)
     fire_source_ignited_at_hours = ctx.ignited_at_hours[fire_sources]
 
-    # Follow the fire one neighbour at a time until no earlier ignition fits in this frame.
+    # Follow the fire one neighbour at a time until no earlier ignition can cause ignition in this timeframe.
     while fire_source_ignited_at_hours.size > 0:
         # The source must still be burning when its neighbour ignites.
         source_burnout_hours = fire_source_ignited_at_hours + ctx.burn_durations_hours[fire_sources]
         # Track which cells gain an earlier arrival during this pass through the neighbours.
         reached_earlier = np.zeros_like(grid, dtype=bool)
 
-        for direction, offset in enumerate(ctx.neighbour_offsets):
+        for direction_index, offset in enumerate(ctx.neighbour_offsets):
             neighbour_indices, has_neighbour = get_neighbour_indices_in_direction(fire_sources, offset, grid.shape)
             # Each stored duration is indexed by the destination and the direction its fire comes from.
-            spread_time_hours = ctx.neighbour_spread_time_hours[direction][neighbour_indices]
-            # A source lit at minute 1 with a 1.4-minute spread time can ignite its neighbour at minute 2.4.
+            spread_time_hours = ctx.neighbour_spread_time_hours[direction_index][neighbour_indices]
+
+            # Calculate possible arrival time of ignition to the neighbours.
+            # For example: a source lit at minute 1 with a 1.4-minute spread time can ignite its neighbour 
+            # at minute 2.4.
             candidate_ignited_at_hours = fire_source_ignited_at_hours[has_neighbour] + spread_time_hours
 
-            # Of the routes that finish by both deadlines, keep the fastest route to each eligible cell.
-            finishes_in_time = (candidate_ignited_at_hours <= current_step_hours) & (candidate_ignited_at_hours <= source_burnout_hours[has_neighbour])
+
+            # The neighbours must ignite by the end of the current time step and before the source burns out.
+            finishes_by_both_deadlines = ((candidate_ignited_at_hours <= current_step_hours) & 
+                                          (candidate_ignited_at_hours <= source_burnout_hours[has_neighbour]))
+
+            # Store the fastest valid ignition route (meets both deadlines) for the ignitable neighbours.
             earlier_route = candidate_ignited_at_hours < newly_lit_ignited_at_hours[neighbour_indices]
-            can_spread = can_ignite[neighbour_indices] & finishes_in_time
-            is_earliest_route_so_far = can_spread & earlier_route
+            valid_ignition_route = can_ignite[neighbour_indices] & finishes_by_both_deadlines
+            is_earliest_route_so_far = valid_ignition_route & earlier_route
 
             # Record these ignition times without changing the live grid while other routes are still being checked.
             neighbour_rows, neighbour_cols = neighbour_indices
-            reached = (neighbour_rows[is_earliest_route_so_far], neighbour_cols[is_earliest_route_so_far])
-            newly_lit_ignited_at_hours[reached] = candidate_ignited_at_hours[is_earliest_route_so_far]
-            reached_earlier[reached] = True
+            reached_neighbours = (neighbour_rows[is_earliest_route_so_far], neighbour_cols[is_earliest_route_so_far])
+            newly_lit_ignited_at_hours[reached_neighbours] = candidate_ignited_at_hours[is_earliest_route_so_far]
+            reached_earlier[reached_neighbours] = True
 
-        # An earlier arrival can also bring fire to the next neighbour sooner.
+        # An earlier arrival can also bring fire to the next neighbour sooner. 
         fire_sources = np.nonzero(reached_earlier)
         fire_source_ignited_at_hours = newly_lit_ignited_at_hours[fire_sources]
 
