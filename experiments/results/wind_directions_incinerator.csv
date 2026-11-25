@@ -1,0 +1,181 @@
+fire_start,wind_from,wind_speed_ms,seed,hours_to_town
+incinerator,N,5.0,0,33.1
+incinerator,N,5.0,1,33.18
+incinerator,N,5.0,2,33.03
+incinerator,N,5.0,3,33.22
+incinerator,N,5.0,4,33.07
+incinerator,N,5.0,5,33.07
+incinerator,N,5.0,6,33.04
+incinerator,N,5.0,7,33.07
+incinerator,N,5.0,8,33.15
+incinerator,N,5.0,9,33.12
+incinerator,N,5.0,10,32.97
+incinerator,N,5.0,11,33.16
+incinerator,N,5.0,12,32.97
+incinerator,N,5.0,13,32.99
+incinerator,N,5.0,14,33.16
+incinerator,N,5.0,15,33.07
+incinerator,N,5.0,16,33.13
+incinerator,N,5.0,17,33.08
+incinerator,N,5.0,18,32.91
+incinerator,N,5.0,19,33.18
+incinerator,NE,5.0,0,30.65
+incinerator,NE,5.0,1,30.74
+incinerator,NE,5.0,2,30.58
+incinerator,NE,5.0,3,30.76
+incinerator,NE,5.0,4,30.7
+incinerator,NE,5.0,5,30.73
+incinerator,NE,5.0,6,30.58
+incinerator,NE,5.0,7,30.55
+incinerator,NE,5.0,8,30.63
+incinerator,NE,5.0,9,30.64
+incinerator,NE,5.0,10,30.53
+incinerator,NE,5.0,11,30.66
+incinerator,NE,5.0,12,30.52
+incinerator,NE,5.0,13,30.49
+incinerator,NE,5.0,14,30.68
+incinerator,NE,5.0,15,30.62
+incinerator,NE,5.0,16,30.64
+incinerator,NE,5.0,17,30.65
+incinerator,NE,5.0,18,30.53
+incinerator,NE,5.0,19,30.62
+incinerator,E,5.0,0,40.87
+incinerator,E,5.0,1,40.94
+incinerator,E,5.0,2,40.78
+incinerator,E,5.0,3,40.97
+incinerator,E,5.0,4,40.94
+incinerator,E,5.0,5,40.76
+incinerator,E,5.0,6,40.82
+incinerator,E,5.0,7,40.74
+incinerator,E,5.0,8,40.85
+incinerator,E,5.0,9,40.88
+incinerator,E,5.0,10,40.71
+incinerator,E,5.0,11,40.75
+incinerator,E,5.0,12,40.64
+incinerator,E,5.0,13,40.7
+incinerator,E,5.0,14,40.96
+incinerator,E,5.0,15,40.75
+incinerator,E,5.0,16,40.98
+incinerator,E,5.0,17,40.9
+incinerator,E,5.0,18,40.83
+incinerator,E,5.0,19,40.75
+incinerator,SE,5.0,0,64.95
+incinerator,SE,5.0,1,65.05
+incinerator,SE,5.0,2,64.79
+incinerator,SE,5.0,3,65.11
+incinerator,SE,5.0,4,65.06
+incinerator,SE,5.0,5,64.77
+incinerator,SE,5.0,6,64.87
+incinerator,SE,5.0,7,64.74
+incinerator,SE,5.0,8,64.91
+incinerator,SE,5.0,9,64.97
+incinerator,SE,5.0,10,64.7
+incinerator,SE,5.0,11,64.74
+incinerator,SE,5.0,12,64.57
+incinerator,SE,5.0,13,64.67
+incinerator,SE,5.0,14,65.1
+incinerator,SE,5.0,15,64.76
+incinerator,SE,5.0,16,65.12
+incinerator,SE,5.0,17,65.0
+incinerator,SE,5.0,18,64.87
+incinerator,SE,5.0,19,64.76
+incinerator,S,5.0,0,93.58
+incinerator,S,5.0,1,93.84
+incinerator,S,5.0,2,93.33
+incinerator,S,5.0,3,93.88
+incinerator,S,5.0,4,93.46
+incinerator,S,5.0,5,93.64
+incinerator,S,5.0,6,93.19
+incinerator,S,5.0,7,93.45
+incinerator,S,5.0,8,93.59
+incinerator,S,5.0,9,93.56
+incinerator,S,5.0,10,93.11
+incinerator,S,5.0,11,93.6
+incinerator,S,5.0,12,93.29
+incinerator,S,5.0,13,93.03
+incinerator,S,5.0,14,93.68
+incinerator,S,5.0,15,93.49
+incinerator,S,5.0,16,93.42
+incinerator,S,5.0,17,93.53
+incinerator,S,5.0,18,93.12
+incinerator,S,5.0,19,93.37
+incinerator,SW,5.0,0,94.98
+incinerator,SW,5.0,1,95.03
+incinerator,SW,5.0,2,94.88
+incinerator,SW,5.0,3,95.07
+incinerator,SW,5.0,4,94.47
+incinerator,SW,5.0,5,94.89
+incinerator,SW,5.0,6,94.56
+incinerator,SW,5.0,7,94.84
+incinerator,SW,5.0,8,94.94
+incinerator,SW,5.0,9,94.88
+incinerator,SW,5.0,10,94.87
+incinerator,SW,5.0,11,94.78
+incinerator,SW,5.0,12,94.97
+incinerator,SW,5.0,13,94.78
+incinerator,SW,5.0,14,94.89
+incinerator,SW,5.0,15,94.65
+incinerator,SW,5.0,16,95.03
+incinerator,SW,5.0,17,94.53
+incinerator,SW,5.0,18,94.84
+incinerator,SW,5.0,19,94.97
+incinerator,W,5.0,0,72.93
+incinerator,W,5.0,1,73.01
+incinerator,W,5.0,2,72.85
+incinerator,W,5.0,3,73.14
+incinerator,W,5.0,4,72.69
+incinerator,W,5.0,5,72.86
+incinerator,W,5.0,6,72.63
+incinerator,W,5.0,7,72.8
+incinerator,W,5.0,8,72.91
+incinerator,W,5.0,9,72.83
+incinerator,W,5.0,10,72.75
+incinerator,W,5.0,11,72.81
+incinerator,W,5.0,12,72.88
+incinerator,W,5.0,13,72.84
+incinerator,W,5.0,14,72.86
+incinerator,W,5.0,15,72.71
+incinerator,W,5.0,16,72.86
+incinerator,W,5.0,17,72.72
+incinerator,W,5.0,18,72.98
+incinerator,W,5.0,19,72.93
+incinerator,NW,5.0,0,48.42
+incinerator,NW,5.0,1,48.58
+incinerator,NW,5.0,2,48.35
+incinerator,NW,5.0,3,48.67
+incinerator,NW,5.0,4,48.39
+incinerator,NW,5.0,5,48.4
+incinerator,NW,5.0,6,48.48
+incinerator,NW,5.0,7,48.46
+incinerator,NW,5.0,8,48.53
+incinerator,NW,5.0,9,48.47
+incinerator,NW,5.0,10,48.37
+incinerator,NW,5.0,11,48.51
+incinerator,NW,5.0,12,48.46
+incinerator,NW,5.0,13,48.35
+incinerator,NW,5.0,14,48.37
+incinerator,NW,5.0,15,48.34
+incinerator,NW,5.0,16,48.51
+incinerator,NW,5.0,17,48.27
+incinerator,NW,5.0,18,48.33
+incinerator,NW,5.0,19,48.52
+incinerator,No wind,0.0,0,36.01
+incinerator,No wind,0.0,1,36.07
+incinerator,No wind,0.0,2,35.92
+incinerator,No wind,0.0,3,36.11
+incinerator,No wind,0.0,4,35.92
+incinerator,No wind,0.0,5,35.98
+incinerator,No wind,0.0,6,35.87
+incinerator,No wind,0.0,7,35.95
+incinerator,No wind,0.0,8,36.07
+incinerator,No wind,0.0,9,36.0
+incinerator,No wind,0.0,10,35.84
+incinerator,No wind,0.0,11,36.02
+incinerator,No wind,0.0,12,35.92
+incinerator,No wind,0.0,13,35.84
+incinerator,No wind,0.0,14,36.01
+incinerator,No wind,0.0,15,35.94
+incinerator,No wind,0.0,16,35.94
+incinerator,No wind,0.0,17,35.92
+incinerator,No wind,0.0,18,35.82
+incinerator,No wind,0.0,19,35.97
