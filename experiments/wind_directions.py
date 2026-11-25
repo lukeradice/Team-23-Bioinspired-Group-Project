@@ -1,3 +1,12 @@
+"""
+Time for the fire to reach the town for each wind direction (+ no wind)
+
+python experiments/wind_directions.py              -> power plant
+python experiments/wind_directions.py incinerator  -> incinerator
+
+Results go in experiments/results. For other tests (water, hills, temp etc)
+change the Run class in hours_to_reach_town
+"""
 import csv
 import os
 import sys
@@ -14,36 +23,42 @@ import forest_fire_model as ffm
 from capyle.ca import Grid2D
 
 
-WIND_SPEED = 5.0
+WIND_SPEED = 5.0  # m/s
 
-RUNS_PER_DIRECTION = 20
+RUNS_PER_DIRECTION = 20  # same seeds for every direction
 
-MAX_HOURS = 500
+MAX_HOURS = 500  # give up after this, e.g. if water stops the fire
 
 FIRE_STARTS = {
     'power_plant': (0, 0),  # top left corner
     'incinerator': (0, 199),  # top right corner
 }
 
+# where the wind comes from, compass degrees
 WIND_DIRECTIONS = {'N': 0, 'NE': 45, 'E': 90, 'SE': 135, 'S': 180, 'SW': 225, 'W': 270, 'NW': 315}
 
 RESULTS_DIR = os.path.join(EXPERIMENTS_DIR, 'results')
 
 
-def hours_to_reach_town(fire_start, wind_from_deg, wind_speed, seed):
+def hours_to_reach_town(fire_start, wind_deg, wind_ms, run_seed):
+    """One run, returns hours until the town catches fire or None if it never does"""
+
+    # override Context settings for this run here
+    class Run(ffm.Context):
+        seed = run_seed
+        wind_from_deg = wind_deg
+        wind_speed = wind_ms
+
     config = ffm.setup([])
     config.fill_in_defaults()
 
+    # setup lights the incinerator so redo the grid with just our fire
     config.initial_grid = ffm.build_terrain_grid(config.grid_dims)
     config.initial_grid[fire_start] = ffm.BURNING_STATE
 
-    ffm.Context.wind_from_deg = wind_from_deg
-    ffm.Context.wind_speed = wind_speed
-    ffm.Context.rng = np.random.default_rng(seed)
-
-    ctx = ffm.Context.from_config(config)
-    ctx.rng = ffm.Context.rng
+    ctx = Run.from_config(config)
     grid = Grid2D(config, (ffm.transition_function, ctx))
+    town = ctx.terrain_grid == ffm.TOWN_STATE
 
     # Step manually, grid.run() would open a progress window
     max_steps = int(MAX_HOURS / ctx.timestep_hours)
@@ -52,11 +67,12 @@ def hours_to_reach_town(fire_start, wind_from_deg, wind_speed, seed):
 
     if ctx.town_arrival_step is None:
         return None
-    return ctx.town_arrival_step * ctx.timestep_hours
+    # exact ignition time, not the step time
+    return float(ctx.ignited_at_hours[town].min())
 
 
 def summarise(hours):
-    """Returns (mean, standard deviation, min, max, runs that reached the town)."""
+    # mean, sd, min, max, how many reached the town
     reached = [h for h in hours if h is not None]
     if not reached:
         return None, None, None, None, 0
@@ -64,6 +80,7 @@ def summarise(hours):
 
 
 def save_csv(path, start_name, results):
+    # one row per run
     with open(path, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['fire_start', 'wind_from', 'wind_speed_ms', 'seed', 'hours_to_town'])
@@ -74,17 +91,20 @@ def save_csv(path, start_name, results):
 
 
 def save_chart(path, start_name, results):
+    # mean +- 1 sd for each direction
     labels = list(results.keys())
     stats = [summarise(results[label]) for label in labels]
     means = [s[0] if s[0] is not None else 0 for s in stats]
     stds = [s[1] if s[1] is not None else 0 for s in stats]
 
+    # no wind in grey
     colours = ['#898781' if label == 'No wind' else '#2a78d6' for label in labels]
 
     fig, ax = plt.subplots(figsize=(9, 5))
     bars = ax.bar(labels, means, width=0.5, color=colours, zorder=2)
     ax.errorbar(labels, means, yerr=stds, fmt='none', ecolor='#52514e', elinewidth=1.5, capsize=4, zorder=3)
 
+    # leave room above the bars for the labels
     top = max(m + s for m, s in zip(means, stds))
     ax.set_ylim(0, top * 1.15)
     for bar, mean, std in zip(bars, means, stds):
@@ -107,6 +127,7 @@ def main():
     start_name = sys.argv[1] if len(sys.argv) > 1 else 'power_plant'
     fire_start = FIRE_STARTS[start_name]
 
+    # direction -> hours for each seed
     results = {}
     for label, degrees in WIND_DIRECTIONS.items():
         print('Wind from {:2s} ...'.format(label))

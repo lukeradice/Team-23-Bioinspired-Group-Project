@@ -97,8 +97,7 @@ class Context:
     #  (Context configuration)
 
     cell_km = 0.25
-    # max spread is 1 cell per step (5 km/h), needs to be faster than scrub + wind
-    timestep_hours = 0.05
+    timestep_hours = 0.2
     # Direction the wind blows from in compass degrees (0 = northerly, 90 = easterly)
     wind_from_deg = 0.0
     # Wind speed in m/s
