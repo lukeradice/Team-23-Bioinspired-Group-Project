@@ -88,8 +88,6 @@ class Context:
     burn_durations_hours: np.ndarray
     # When each cell ignited (or infinite if it hasn't ignited yet)
     ignited_at_hours: np.ndarray
-    # Earliest hour each cell can ignite after temporary blocking
-    ignition_allowed_after_hours: np.ndarray
     # The time it takes for fire to spread from each cell to its neighbours in hours
     neighbour_spread_time_hours: np.ndarray
     # The timestep at which water should deploy
@@ -163,7 +161,6 @@ class Context:
         # Sources ignite at hour zero. Infinity means it hasn't ignited yet.
         initial_fire_sources = terrain_grid == BURNING_STATE
         ignited_at_hours = np.where(initial_fire_sources, 0.0, np.inf)
-        ignition_allowed_after_hours = np.zeros(terrain_grid.shape, dtype=float)
 
         # Wind changes the spread speed according to the direction the fire travels.
         wind_weights = cls.get_wind_weights()
@@ -193,7 +190,6 @@ class Context:
             terrain_grid=terrain_grid,
             burn_durations_hours=burn_durations_hours,
             ignited_at_hours=ignited_at_hours,
-            ignition_allowed_after_hours=ignition_allowed_after_hours,
             neighbour_spread_time_hours=neighbour_spread_time_hours,
             water_deploy_timestep=water_deploy_timestep,
         )
@@ -423,11 +419,6 @@ def get_newly_lit_ignited_at_hours(
             # For example: a source lit at minute 1 with a 1.4-minute spread time can ignite its neighbour 
             # at minute 2.4.
             candidate_ignited_at_hours = fire_source_ignited_at_hours[has_neighbour] + spread_time_hours
-            candidate_ignited_at_hours = np.maximum(
-                candidate_ignited_at_hours,
-                ctx.ignition_allowed_after_hours[neighbour_indices],
-            )
-
 
             # The neighbours must ignite by the end of the current time step and before the source burns out.
             finishes_by_both_deadlines = ((candidate_ignited_at_hours <= current_step_hours) & 
