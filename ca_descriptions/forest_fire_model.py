@@ -467,7 +467,7 @@ def transition_function(
     town_contact = newly_lit & (ctx.terrain_grid == TOWN_STATE)
     grid[(grid == BURNING_STATE) & burnt & ~town_contact] = BURNT_STATE
 
-    #  --- Deploy and remove water ---
+    #  --- Deploy water ---
 
     if ctx.step == ctx.water_deploy_timestep:
         grid = deploy_water(ctx, grid)
