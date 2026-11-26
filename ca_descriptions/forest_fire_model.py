@@ -137,7 +137,7 @@ class Context:
     min_burn_time_random_multiplier = 0.8
 
     # Hour the 12.5km^2 of water is dropped
-    water_deploy_hours = 0 # put to -1 if you want to disable, put to 0.0 if you want placement at step 1
+    water_deploy_hours = -1 # put to -1 if you want to disable, put to 0.0 if you want placement at step 1
     # Try 20 wide (0.25 x 20) = 5km
     # Try 10 tall (0.25 s 10) = 2.5km
     # 10 tall
