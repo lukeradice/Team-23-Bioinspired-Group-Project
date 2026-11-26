@@ -24,7 +24,7 @@ from capyle.ca import Grid2D
 
 BURNING_STATE = 0
 
-WIND_SPEED = 10.0  # m/s
+WIND_SPEED = 5.0  # m/s
 
 RUNS_PER_DIRECTION = 20  # same seeds for every direction
 
