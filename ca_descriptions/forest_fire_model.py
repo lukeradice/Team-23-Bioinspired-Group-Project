@@ -88,10 +88,15 @@ class Context:
     burn_durations_hours: np.ndarray
     # When each cell ignited (or infinite if it hasn't ignited yet)
     ignited_at_hours: np.ndarray
+    # Earliest hour each cell can ignite after temporary blocking
+    ignition_allowed_after_hours: np.ndarray
     # The time it takes for fire to spread from each cell to its neighbours in hours
     neighbour_spread_time_hours: np.ndarray
     # The timestep at which water should deploy
     water_deploy_timestep: int
+    water_deployment_timestep_duration: int
+    water_deployed_region_prev_burnt_states: Optional[np.ndarray] = None
+
 
     # --- Default arguments ---
     #  (Context configuration)
@@ -99,17 +104,15 @@ class Context:
     cell_km = 0.25
     timestep_hours = 0.2
     # Direction the wind blows from in compass degrees (0 = northerly, 90 = easterly)
-    wind_from_deg = 0.0
+    wind_from_deg = 90
     # Wind speed in m/s
-    wind_speed = 0.0
+    wind_speed = 5.0
     # The current simulation step
     step = 0
     # The step at which it arrives at the town
     town_arrival_step: Optional[int] = None
     # Temperature weight determination
     ambient_temperature = 20
-    # Hour the 12.5km^2 of water is dropped
-    water_deploy_hours = -1 # put to -1 if you want to disable
     # Same order as CAPyLE's neighbourstates: NW, N, NE, W, E, SW, S, SE
     # Each offset locates the source neighbour relative to a destination cell
     neighbour_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
@@ -136,6 +139,20 @@ class Context:
     # Burn time for a square will be at least 80% of the maximum in max_burn_times
     min_burn_time_random_multiplier = 0.8
 
+    # Hour the 12.5km^2 of water is dropped
+    water_deploy_hours = 2 # put to -1 if you want to disable
+    water_deployment_duration_in_hours = 2
+    # Water deployment rectangle veritices (in this problem must cover 12.5km^2, 200 cells total)
+    # Try 20 wide (0.25 x 20) = 5km
+    # Try 10 tall (0.25 s 10) = 2.5km
+    # 10 tall
+    # or 14 x 14 = 196 squares
+    # 14 x 0.25 = 3.5km
+    water_deployment_rectangular_region = (
+        slice(0, 14),
+        slice(186, 200)
+    )
+
     @classmethod
     def from_config(cls, config: CAConfig):
         """Create a new context with defaults inferred from the simulation's config."""
@@ -155,6 +172,7 @@ class Context:
         # Sources ignite at hour zero. Infinity means it hasn't ignited yet.
         initial_fire_sources = terrain_grid == BURNING_STATE
         ignited_at_hours = np.where(initial_fire_sources, 0.0, np.inf)
+        ignition_allowed_after_hours = np.zeros(terrain_grid.shape, dtype=float)
 
         # Wind changes the spread speed according to the direction the fire travels.
         wind_weights = cls.get_wind_weights()
@@ -179,13 +197,16 @@ class Context:
 
         # Get the timestep at which water should be deployed
         water_deploy_timestep = ceil(cls.water_deploy_hours / cls.timestep_hours)
-
+        water_deployment_timestep_duration = ceil(cls.water_deployment_duration_in_hours / cls.timestep_hours)
+        
         return cls(
             terrain_grid=terrain_grid,
             burn_durations_hours=burn_durations_hours,
             ignited_at_hours=ignited_at_hours,
+            ignition_allowed_after_hours=ignition_allowed_after_hours,
             neighbour_spread_time_hours=neighbour_spread_time_hours,
             water_deploy_timestep=water_deploy_timestep,
+            water_deployment_timestep_duration=water_deployment_timestep_duration
         )
 
     @classmethod
@@ -413,6 +434,10 @@ def get_newly_lit_ignited_at_hours(
             # For example: a source lit at minute 1 with a 1.4-minute spread time can ignite its neighbour 
             # at minute 2.4.
             candidate_ignited_at_hours = fire_source_ignited_at_hours[has_neighbour] + spread_time_hours
+            candidate_ignited_at_hours = np.maximum(
+                candidate_ignited_at_hours,
+                ctx.ignition_allowed_after_hours[neighbour_indices],
+            )
 
 
             # The neighbours must ignite by the end of the current time step and before the source burns out.
@@ -462,10 +487,13 @@ def transition_function(
     town_contact = newly_lit & (ctx.terrain_grid == TOWN_STATE)
     grid[(grid == BURNING_STATE) & burnt & ~town_contact] = BURNT_STATE
 
-    #  --- Deploy water ---
+    #  --- Deploy and remove water ---
 
     if ctx.step == ctx.water_deploy_timestep:
-        grid = deploy_water(grid)
+        grid = deploy_water(ctx, grid)
+
+    if ctx.step == ctx.water_deploy_timestep + ctx.water_deployment_timestep_duration:
+        grid = remove_deployed_water(ctx, grid)
 
     # --- Check if fire spread to the town ---
 
@@ -475,14 +503,30 @@ def transition_function(
 
     return grid
 
-def deploy_water(grid):
-    '''Function to return the grid with 12.5km^2 of the cells replaced with the lake state to simulate water being dropped'''
+def deploy_water(ctx: Context, grid: np.ndarray) -> np.ndarray:
+    '''Function to return the grid with 12.5km^2 of the cells replaced with the lake state 7
+       to simulate water being dropped'''
 
-    # Line 1
-    grid[0:100, 100] = LAKE_STATE
+    region = ctx.water_deployment_rectangular_region
+    ctx.water_deployed_region_prev_burnt_states = grid[region] == BURNT_STATE
+    ctx.ignition_allowed_after_hours[region] = (
+        ctx.step + ctx.water_deployment_timestep_duration
+    ) * ctx.timestep_hours
+    grid[region] = LAKE_STATE
 
-    # Line 2 
-    grid[100, 100:199] = LAKE_STATE
+    return grid
+
+def remove_deployed_water(ctx: Context, grid: np.ndarray) -> np.ndarray:
+    '''Function to return the grid with 12.5km^2 of the cells that was assigned to the 
+       lake state to simulate water being dropped, removed. It preserves previous burnt status. '''
+
+    water_dropped_region = ctx.water_deployment_rectangular_region
+    previously_burnt = ctx.water_deployed_region_prev_burnt_states
+    grid[water_dropped_region] = ctx.terrain_grid[water_dropped_region]
+
+    initial_fire_sources = ctx.terrain_grid[water_dropped_region] == BURNING_STATE
+    grid[water_dropped_region][initial_fire_sources] = BURNT_STATE
+    grid[water_dropped_region][previously_burnt] = BURNT_STATE
 
     return grid
 

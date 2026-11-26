@@ -125,6 +125,7 @@ def save_chart(path, start_name, results):
 
 def main():
     start_name = sys.argv[1] if len(sys.argv) > 1 else 'power_plant'
+    print(f"starting fire experiments from {start_name}")
     fire_start = FIRE_STARTS[start_name]
 
     # direction -> hours for each seed
