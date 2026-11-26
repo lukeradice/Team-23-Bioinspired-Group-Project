@@ -138,13 +138,7 @@ class Context:
 
     # Hour the 12.5km^2 of water is dropped
     water_deploy_hours = -1 # put to -1 if you want to disable, put to 0.0 if you want placement at step 1
-    # Try 20 wide (0.25 x 20) = 5km
-    # Try 10 tall (0.25 s 10) = 2.5km
-    # 10 tall
-    # or 14 x 14 = 196 squares
-    #    slice(35, 40),
-    #         slice(160, 200)
-    # 14 x 0.25 = 3.5km
+    # Water deployment region
     water_deployment_rectangular_region = (
         slice(0, 40),
         slice(130, 135)
