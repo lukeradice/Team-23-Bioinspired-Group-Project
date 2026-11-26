@@ -94,9 +94,6 @@ class Context:
     neighbour_spread_time_hours: np.ndarray
     # The timestep at which water should deploy
     water_deploy_timestep: int
-    water_deployment_timestep_duration: int
-    water_deployed_region_prev_burnt_states: Optional[np.ndarray] = None
-
 
     # --- Default arguments ---
     #  (Context configuration)
@@ -140,9 +137,7 @@ class Context:
     min_burn_time_random_multiplier = 0.8
 
     # Hour the 12.5km^2 of water is dropped
-    water_deploy_hours = 2 # put to -1 if you want to disable
-    water_deployment_duration_in_hours = 2
-    # Water deployment rectangle veritices (in this problem must cover 12.5km^2, 200 cells total)
+    water_deploy_hours = 1.5 # put to -1 if you want to disable
     # Try 20 wide (0.25 x 20) = 5km
     # Try 10 tall (0.25 s 10) = 2.5km
     # 10 tall
@@ -197,7 +192,6 @@ class Context:
 
         # Get the timestep at which water should be deployed
         water_deploy_timestep = ceil(cls.water_deploy_hours / cls.timestep_hours)
-        water_deployment_timestep_duration = ceil(cls.water_deployment_duration_in_hours / cls.timestep_hours)
         
         return cls(
             terrain_grid=terrain_grid,
@@ -206,7 +200,6 @@ class Context:
             ignition_allowed_after_hours=ignition_allowed_after_hours,
             neighbour_spread_time_hours=neighbour_spread_time_hours,
             water_deploy_timestep=water_deploy_timestep,
-            water_deployment_timestep_duration=water_deployment_timestep_duration
         )
 
     @classmethod
@@ -492,9 +485,6 @@ def transition_function(
     if ctx.step == ctx.water_deploy_timestep:
         grid = deploy_water(ctx, grid)
 
-    if ctx.step == ctx.water_deploy_timestep + ctx.water_deployment_timestep_duration:
-        grid = remove_deployed_water(ctx, grid)
-
     # --- Check if fire spread to the town ---
 
     town_lit = np.any((grid == BURNING_STATE) & (ctx.terrain_grid == TOWN_STATE))
@@ -507,28 +497,10 @@ def deploy_water(ctx: Context, grid: np.ndarray) -> np.ndarray:
     '''Function to return the grid with 12.5km^2 of the cells replaced with the lake state 7
        to simulate water being dropped'''
 
-    region = ctx.water_deployment_rectangular_region
-    ctx.water_deployed_region_prev_burnt_states = grid[region] == BURNT_STATE
-    ctx.ignition_allowed_after_hours[region] = (
-        ctx.step + ctx.water_deployment_timestep_duration
-    ) * ctx.timestep_hours
-    grid[region] = LAKE_STATE
+    grid[ctx.water_deployment_rectangular_region] = LAKE_STATE
 
     return grid
 
-def remove_deployed_water(ctx: Context, grid: np.ndarray) -> np.ndarray:
-    '''Function to return the grid with 12.5km^2 of the cells that was assigned to the 
-       lake state to simulate water being dropped, removed. It preserves previous burnt status. '''
-
-    water_dropped_region = ctx.water_deployment_rectangular_region
-    previously_burnt = ctx.water_deployed_region_prev_burnt_states
-    grid[water_dropped_region] = ctx.terrain_grid[water_dropped_region]
-
-    initial_fire_sources = ctx.terrain_grid[water_dropped_region] == BURNING_STATE
-    grid[water_dropped_region][initial_fire_sources] = BURNT_STATE
-    grid[water_dropped_region][previously_burnt] = BURNT_STATE
-
-    return grid
 
 def main():
     """ Main function that sets up, runs and saves CA"""

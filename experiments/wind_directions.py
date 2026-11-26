@@ -22,8 +22,9 @@ sys.path.append(os.path.join(os.path.dirname(EXPERIMENTS_DIR), 'ca_descriptions'
 import forest_fire_model as ffm
 from capyle.ca import Grid2D
 
+BURNING_STATE = 0
 
-WIND_SPEED = 5.0  # m/s
+WIND_SPEED = 10.0  # m/s
 
 RUNS_PER_DIRECTION = 20  # same seeds for every direction
 
@@ -62,7 +63,7 @@ def hours_to_reach_town(fire_start, wind_deg, wind_ms, run_seed):
 
     # Step manually, grid.run() would open a progress window
     max_steps = int(MAX_HOURS / ctx.timestep_hours)
-    while ctx.town_arrival_step is None and ctx.step < max_steps:
+    while ctx.town_arrival_step is None and ctx.step < max_steps and np.count_nonzero(grid == BURNING_STATE) > 0:
         grid.step()
 
     if ctx.town_arrival_step is None:
@@ -106,7 +107,8 @@ def save_chart(path, start_name, results):
 
     # leave room above the bars for the labels
     top = max(m + s for m, s in zip(means, stds))
-    ax.set_ylim(0, top * 1.15)
+    y_max = max(top*1.15, 1.0)
+    ax.set_ylim(0, y_max)
     for bar, mean, std in zip(bars, means, stds):
         ax.text(bar.get_x() + bar.get_width() / 2, mean + std + top * 0.02, '{:.1f}'.format(mean),
                 ha='center', va='bottom', fontsize=9)
