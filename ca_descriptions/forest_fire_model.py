@@ -99,7 +99,7 @@ class Context:
     cell_km = 0.25
     timestep_hours = 0.2
     # Direction the wind blows from in compass degrees (0 = northerly, 90 = easterly)
-    wind_from_deg = 90
+    wind_from_deg = 0.0
     # Wind speed in m/s
     wind_speed = 5.0
     # The current simulation step
