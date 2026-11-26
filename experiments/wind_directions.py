@@ -63,7 +63,7 @@ def hours_to_reach_town(fire_start, wind_deg, wind_ms, run_seed):
 
     # Step manually, grid.run() would open a progress window
     max_steps = int(MAX_HOURS / ctx.timestep_hours)
-    while ctx.town_arrival_step is None and ctx.step < max_steps and np.count_nonzero(grid == BURNING_STATE) > 0:
+    while ctx.town_arrival_step is None and ctx.step < max_steps and ctx.cells_burning:
         grid.step()
 
     if ctx.town_arrival_step is None:

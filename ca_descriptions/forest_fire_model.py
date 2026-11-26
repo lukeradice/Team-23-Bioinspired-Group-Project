@@ -97,7 +97,7 @@ class Context:
 
     # --- Default arguments ---
     #  (Context configuration)
-
+    cells_burning = True
     cell_km = 0.25
     timestep_hours = 0.2
     # Direction the wind blows from in compass degrees (0 = northerly, 90 = easterly)
@@ -137,15 +137,17 @@ class Context:
     min_burn_time_random_multiplier = 0.8
 
     # Hour the 12.5km^2 of water is dropped
-    water_deploy_hours = 1.5 # put to -1 if you want to disable
+    water_deploy_hours = -1 # put to -1 if you want to disable, put to 0.0 if you want placement at step 1
     # Try 20 wide (0.25 x 20) = 5km
     # Try 10 tall (0.25 s 10) = 2.5km
     # 10 tall
     # or 14 x 14 = 196 squares
+    #    slice(35, 40),
+    #         slice(160, 200)
     # 14 x 0.25 = 3.5km
     water_deployment_rectangular_region = (
-        slice(0, 14),
-        slice(186, 200)
+        slice(35, 40),
+        slice(160, 200)
     )
 
     @classmethod
@@ -191,7 +193,7 @@ class Context:
         neighbour_spread_time_hours.setflags(write=False)
 
         # Get the timestep at which water should be deployed
-        water_deploy_timestep = ceil(cls.water_deploy_hours / cls.timestep_hours)
+        water_deploy_timestep = ceil(cls.water_deploy_hours / cls.timestep_hours) if cls.water_deploy_hours != 0.0 else 1
         
         return cls(
             terrain_grid=terrain_grid,
@@ -490,6 +492,9 @@ def transition_function(
     town_lit = np.any((grid == BURNING_STATE) & (ctx.terrain_grid == TOWN_STATE))
     if ctx.town_arrival_step is None and town_lit:
         ctx.town_arrival_step = ctx.step
+
+    if np.count_nonzero(grid == BURNING_STATE) == 0:
+        ctx.cells_burning = False
 
     return grid
 
