@@ -95,21 +95,19 @@ class Context:
 
     # --- Default arguments ---
     #  (Context configuration)
-
+    cells_burning = True
     cell_km = 0.25
     timestep_hours = 0.2
     # Direction the wind blows from in compass degrees (0 = northerly, 90 = easterly)
     wind_from_deg = 0.0
     # Wind speed in m/s
-    wind_speed = 0.0
+    wind_speed = 5.0
     # The current simulation step
     step = 0
     # The step at which it arrives at the town
     town_arrival_step: Optional[int] = None
     # Temperature weight determination
     ambient_temperature = 20
-    # Hour the 12.5km^2 of water is dropped
-    water_deploy_hours = -1 # put to -1 if you want to disable
     # Same order as CAPyLE's neighbourstates: NW, N, NE, W, E, SW, S, SE
     # Each offset locates the source neighbour relative to a destination cell
     neighbour_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
@@ -135,6 +133,14 @@ class Context:
     }
     # Burn time for a square will be at least 80% of the maximum in max_burn_times
     min_burn_time_random_multiplier = 0.8
+
+    # Hour the 12.5km^2 of water is dropped
+    water_deploy_hours = -1 # put to -1 if you want to disable, put to 0.0 if you want placement at step 1
+    # Water deployment region
+    water_deployment_rectangular_region = (
+        slice(0, 40),
+        slice(130, 135)
+    )
 
     @classmethod
     def from_config(cls, config: CAConfig):
@@ -178,8 +184,8 @@ class Context:
         neighbour_spread_time_hours.setflags(write=False)
 
         # Get the timestep at which water should be deployed
-        water_deploy_timestep = ceil(cls.water_deploy_hours / cls.timestep_hours)
-
+        water_deploy_timestep = ceil(cls.water_deploy_hours / cls.timestep_hours) if cls.water_deploy_hours != 0.0 else 1
+        
         return cls(
             terrain_grid=terrain_grid,
             burn_durations_hours=burn_durations_hours,
@@ -414,7 +420,6 @@ def get_newly_lit_ignited_at_hours(
             # at minute 2.4.
             candidate_ignited_at_hours = fire_source_ignited_at_hours[has_neighbour] + spread_time_hours
 
-
             # The neighbours must ignite by the end of the current time step and before the source burns out.
             finishes_by_both_deadlines = ((candidate_ignited_at_hours <= current_step_hours) & 
                                           (candidate_ignited_at_hours <= source_burnout_hours[has_neighbour]))
@@ -465,7 +470,7 @@ def transition_function(
     #  --- Deploy water ---
 
     if ctx.step == ctx.water_deploy_timestep:
-        grid = deploy_water(grid)
+        grid = deploy_water(ctx, grid)
 
     # --- Check if fire spread to the town ---
 
@@ -473,18 +478,19 @@ def transition_function(
     if ctx.town_arrival_step is None and town_lit:
         ctx.town_arrival_step = ctx.step
 
-    return grid
-
-def deploy_water(grid):
-    '''Function to return the grid with 12.5km^2 of the cells replaced with the lake state to simulate water being dropped'''
-
-    # Line 1
-    grid[0:100, 100] = LAKE_STATE
-
-    # Line 2 
-    grid[100, 100:199] = LAKE_STATE
+    if np.count_nonzero(grid == BURNING_STATE) == 0:
+        ctx.cells_burning = False
 
     return grid
+
+def deploy_water(ctx: Context, grid: np.ndarray) -> np.ndarray:
+    '''Function to return the grid with 12.5km^2 of the cells replaced with the lake state 7
+       to simulate water being dropped'''
+
+    grid[ctx.water_deployment_rectangular_region] = LAKE_STATE
+
+    return grid
+
 
 def main():
     """ Main function that sets up, runs and saves CA"""
